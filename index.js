@@ -1,6 +1,8 @@
 const express = require('express');
 const cors = require('cors');
+require('dotenv').config();
 const pool = require('./db');
+const authRoutes = require('./routes/authRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -17,6 +19,9 @@ app.get('/test', async (req, res) => {
     res.status(500).send('Error en la base de datos');
   }
 });
+
+// Rutas
+app.use('/api/auth', authRoutes); 
 
 app.listen(PORT, () => {
   console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
