@@ -4,6 +4,7 @@ require('dotenv').config();
 const pool = require('./db');
 const authRoutes = require('./routes/authRoutes');
 const usuariosRoutes = require('./routes/usuariosRoutes');
+const clientesRoutes = require('./routes/clientesRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -24,6 +25,7 @@ app.get('/test', async (req, res) => {
 // Rutas
 app.use('/api/auth', authRoutes); 
 app.use('/api/usuarios', usuariosRoutes);
+app.use('/api/clientes', clientesRoutes);
 
 app.listen(PORT, () => {
   console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
