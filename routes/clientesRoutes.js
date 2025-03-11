@@ -1,6 +1,6 @@
 const express = require('express');
 const { verifyToken } = require('../middlewares/authMiddleware');
-const { createCliente, getClientesByUser  } = require('../controllers/clienteController');
+const { createCliente, getClientesByUser, deleteCliente } = require('../controllers/clienteController');
 
 const router = express.Router();
 
@@ -9,5 +9,8 @@ router.post('/', verifyToken, createCliente);
 
 // Obtener clientes del usuario autenticado
 router.get('/', verifyToken, getClientesByUser);
+
+// Eliminar un cliente (Solo el usuario autenticado puede eliminar sus clientes)
+router.delete('/:id', verifyToken, deleteCliente);
 
 module.exports = router;

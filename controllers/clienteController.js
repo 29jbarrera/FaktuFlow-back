@@ -44,4 +44,30 @@ const getClientesByUser = async (req, res) => {
     }
 };
 
-module.exports = { createCliente, getClientesByUser  };
+// 📌 Eliminar un cliente
+const deleteCliente = async (req, res) => {
+  const { id } = req.params;
+  const usuario_id = req.user.id; // Obtenemos el ID del usuario autenticado
+
+  try {
+    // Verificar si el cliente existe y si pertenece al usuario autenticado
+    const cliente = await pool.query(
+    'SELECT * FROM clientes WHERE id = $1 AND usuario_id = $2',
+      [id, usuario_id]
+    );
+
+    if (cliente.rows.length === 0) {
+      return res.status(404).json({ message: 'Cliente no encontrado o no autorizado' });
+    }
+
+    // Eliminar el cliente
+    await pool.query('DELETE FROM clientes WHERE id = $1', [id]);
+
+    res.json({ message: 'Cliente eliminado con éxito' });
+  } catch (error) {
+    console.error('❌ Error al eliminar cliente:', error);
+    res.status(500).json({ message: 'Error en el servidor' });
+  }
+};
+
+module.exports = { createCliente, getClientesByUser, deleteCliente };
