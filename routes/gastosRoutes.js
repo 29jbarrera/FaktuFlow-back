@@ -1,7 +1,6 @@
 const express = require('express');
 const { verifyToken } = require('../middlewares/authMiddleware');
-const { createGasto } = require('../controllers/gastoController');
-const { getGastos } = require('../controllers/gastoController');
+const { createGasto, getGastos, updateGasto, deleteGasto } = require('../controllers/gastoController');
 
 const router = express.Router();
 
@@ -10,5 +9,11 @@ router.post('/', verifyToken, createGasto);
 
 // Obtener gastos del usuario autenticado
 router.get('/', verifyToken, getGastos);
+
+// Actualizar un gasto (Solo usuario autenticado)
+router.put('/:id', verifyToken, updateGasto);
+
+// Eliminar un gasto (Solo usuario autenticado)
+router.delete('/:id', verifyToken, deleteGasto);
 
 module.exports = router;

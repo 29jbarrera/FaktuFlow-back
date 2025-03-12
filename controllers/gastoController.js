@@ -46,4 +46,57 @@ const getGastos = async (req, res) => {
     }
   };
 
-module.exports = { createGasto, getGastos };
+  // 📌 Actualizar un gasto
+const updateGasto = async (req, res) => {
+    const usuario_id = req.user.id; // ID del usuario autenticado desde el token
+    const { id } = req.params;
+    const { nombre_gasto, categoria, fecha, importe_total, descripcion } = req.body;
+  
+    try {
+      // Verificar si el gasto pertenece al usuario
+      const gasto = await pool.query('SELECT * FROM gastos WHERE id = $1 AND usuario_id = $2', [id, usuario_id]);
+      if (gasto.rows.length === 0) {
+        return res.status(404).json({ message: 'Gasto no encontrado o no autorizado' });
+      }
+  
+      // Actualizar gasto en la base de datos
+      const updatedGasto = await pool.query(
+        `UPDATE gastos 
+         SET nombre_gasto = $1, categoria = $2, fecha = COALESCE($3, fecha), 
+             importe_total = $4, descripcion = COALESCE($5, descripcion) 
+         WHERE id = $6 RETURNING *`,
+        [nombre_gasto, categoria, fecha || null, importe_total, descripcion || null, id]
+      );
+  
+      res.json({ message: 'Gasto actualizado con éxito', gasto: updatedGasto.rows[0] });
+  
+    } catch (error) {
+      console.error('❌ Error al actualizar gasto:', error);
+      res.status(500).json({ message: 'Error en el servidor' });
+    }
+};
+
+// 📌 Eliminar un gasto
+const deleteGasto = async (req, res) => {
+    const usuario_id = req.user.id; // ID del usuario autenticado
+    const { id } = req.params;
+  
+    try {
+      // Verificar si el gasto pertenece al usuario
+      const gasto = await pool.query('SELECT * FROM gastos WHERE id = $1 AND usuario_id = $2', [id, usuario_id]);
+      if (gasto.rows.length === 0) {
+        return res.status(404).json({ message: 'Gasto no encontrado o no autorizado' });
+      }
+  
+      // Eliminar gasto de la base de datos
+      await pool.query('DELETE FROM gastos WHERE id = $1', [id]);
+  
+      res.json({ message: 'Gasto eliminado con éxito' });
+  
+    } catch (error) {
+      console.error('❌ Error al eliminar gasto:', error);
+      res.status(500).json({ message: 'Error en el servidor' });
+    }
+};
+
+module.exports = { createGasto, getGastos, updateGasto, deleteGasto };
