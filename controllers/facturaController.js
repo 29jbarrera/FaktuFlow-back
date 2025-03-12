@@ -27,4 +27,23 @@ const createFactura = async (req, res) => {
   }
 };
 
-module.exports = { createFactura };
+// 📌 Obtener todas las facturas del usuario autenticado
+const getFacturasByUser = async (req, res) => {
+  const usuario_id = req.user.id; // Obtener el ID del usuario desde el token
+
+  try {
+    // Consultar todas las facturas del usuario autenticado
+    const facturas = await pool.query(
+      `SELECT * FROM facturas WHERE usuario_id = $1 ORDER BY fecha_emision DESC`,
+      [usuario_id]
+    );
+
+    res.json({ facturas: facturas.rows });
+
+  } catch (error) {
+    console.error('❌ Error al obtener facturas:', error);
+    res.status(500).json({ message: 'Error en el servidor' });
+  }
+};
+
+module.exports = { createFactura, getFacturasByUser };
