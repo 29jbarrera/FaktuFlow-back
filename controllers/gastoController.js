@@ -27,4 +27,23 @@ const createGasto = async (req, res) => {
   }
 };
 
-module.exports = { createGasto };
+// 📌 Obtener gastos del usuario autenticado
+const getGastos = async (req, res) => {
+    const usuario_id = req.user.id; // Obtener ID del usuario autenticado desde el token
+  
+    try {
+      // Consultar gastos del usuario autenticado
+      const gastos = await pool.query(
+        'SELECT * FROM gastos WHERE usuario_id = $1 ORDER BY fecha DESC',
+        [usuario_id]
+      );
+  
+      res.json({ message: 'Gastos obtenidos con éxito', gastos: gastos.rows });
+  
+    } catch (error) {
+      console.error('❌ Error al obtener gastos:', error);
+      res.status(500).json({ message: 'Error en el servidor' });
+    }
+  };
+
+module.exports = { createGasto, getGastos };
