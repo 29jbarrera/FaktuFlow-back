@@ -35,20 +35,37 @@ const createCliente = async (req, res) => {
   }
 };
 
-// 📌 Obtener todos los clientes del usuario autenticado
+// 📌 Obtener todos los clientes del usuario autenticado con paginación
 const getClientesByUser = async (req, res) => {
-  const usuario_id = req.user.id; // Obtenemos el ID del usuario autenticado
+  const usuario_id = req.user.id; // Obtener ID del usuario autenticado desde el token
+  const page = parseInt(req.query.page) || 1; // Página actual
+  const limit = parseInt(req.query.limit) || 10; // Límites por página
+  const offset = (page - 1) * limit; // Calcular el offset para la consulta
 
   try {
-    const clientes = await pool.query(
-      "SELECT * FROM clientes WHERE usuario_id = $1",
+    // Consultar clientes del usuario autenticado con LIMIT y OFFSET
+    const result = await pool.query(
+      "SELECT * FROM clientes WHERE usuario_id = $1 ORDER BY nombre ASC LIMIT $2 OFFSET $3",
+      [usuario_id, limit, offset]
+    );
+
+    // Contar el número total de clientes para el cálculo de las páginas
+    const totalCountResult = await pool.query(
+      "SELECT COUNT(*) FROM clientes WHERE usuario_id = $1",
       [usuario_id]
     );
 
-    res.json({ clientes: clientes.rows });
+    const totalCount = totalCountResult.rows[0].count; // Total de registros
+    const totalPages = Math.ceil(totalCount / limit); // Calcular el número total de páginas
+
+    res.status(200).json({
+      clientes: result.rows, // Clientes de la página actual
+      total: totalCount, // Total de clientes (para calcular el número de páginas)
+      totalPages: totalPages, // Total de páginas
+    });
   } catch (error) {
     console.error("❌ Error al obtener clientes:", error);
-    res.status(500).json({ message: "Error en el servidor" });
+    res.status(500).json({ message: "Error al obtener los clientes." });
   }
 };
 
