@@ -8,6 +8,7 @@ const clientesRoutes = require('./routes/clientesRoutes');
 const facturasRoutes = require('./routes/facturasRoutes');
 const gastosRoutes = require('./routes/gastosRoutes');
 const ingresosRoutes = require('./routes/ingresosRoutes');
+const adminRoutes = require('./routes/adminRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -32,6 +33,7 @@ app.use('/api/clientes', clientesRoutes);
 app.use('/api/facturas', facturasRoutes);
 app.use('/api/gastos', gastosRoutes);
 app.use('/api/ingresos', ingresosRoutes);
+app.use('/api/admin', adminRoutes);
 
 app.listen(PORT, () => {
   console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
