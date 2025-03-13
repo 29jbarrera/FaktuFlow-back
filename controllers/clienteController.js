@@ -1,47 +1,55 @@
-const pool = require('../db');
+const pool = require("../db");
 
-// 📌 Crear un cliente (Asociado al usuario autenticado)
+// 📌 Crear un cliente
 const createCliente = async (req, res) => {
   const { nombre, email, telefono, direccion_fiscal } = req.body;
-  const usuario_id = req.user.id; // Obtenemos el ID del usuario autenticado desde el token
 
   try {
-    if (!nombre) {
-      return res.status(400).json({ message: 'El nombre es obligatorio' });
-    }
-
-    // Insertar el cliente con el usuario_id del usuario autenticado
-    const newCliente = await pool.query(
-      `INSERT INTO clientes (nombre, email, telefono, direccion_fiscal, usuario_id) 
-       VALUES ($1, $2, $3, $4, $5) 
-       RETURNING *`,
-      [nombre, email || null, telefono || null, direccion_fiscal || null, usuario_id]
+    // Verificar si ya existe un cliente con ese email
+    const emailExists = await pool.query(
+      "SELECT * FROM clientes WHERE email = $1",
+      [email]
     );
 
-    res.status(201).json({ message: 'Cliente creado con éxito', cliente: newCliente.rows[0] });
+    if (emailExists.rows.length > 0) {
+      return res
+        .status(400)
+        .json({ message: "El correo electrónico ya está en uso" });
+    }
 
+    // Insertar cliente en la base de datos
+    const newCliente = await pool.query(
+      `INSERT INTO clientes (nombre, email, telefono, direccion_fiscal) 
+       VALUES ($1, $2, $3, $4) 
+       RETURNING *`,
+      [nombre, email || null, telefono || null, direccion_fiscal || null] // Si están vacíos, se guardan como NULL
+    );
+
+    res.status(201).json({
+      message: "Cliente creado con éxito",
+      cliente: newCliente.rows[0],
+    });
   } catch (error) {
-    console.error('❌ Error al crear cliente:', error);
-    res.status(500).json({ message: 'Error en el servidor' });
+    console.error("❌ Error al crear cliente:", error);
+    res.status(500).json({ message: "Error en el servidor" });
   }
 };
 
 // 📌 Obtener todos los clientes del usuario autenticado
 const getClientesByUser = async (req, res) => {
-    const usuario_id = req.user.id; // Obtenemos el ID del usuario autenticado
-  
-    try {
-      const clientes = await pool.query(
-        'SELECT * FROM clientes WHERE usuario_id = $1',
-        [usuario_id]
-      );
-  
-      res.json({ clientes: clientes.rows });
-  
-    } catch (error) {
-      console.error('❌ Error al obtener clientes:', error);
-      res.status(500).json({ message: 'Error en el servidor' });
-    }
+  const usuario_id = req.user.id; // Obtenemos el ID del usuario autenticado
+
+  try {
+    const clientes = await pool.query(
+      "SELECT * FROM clientes WHERE usuario_id = $1",
+      [usuario_id]
+    );
+
+    res.json({ clientes: clientes.rows });
+  } catch (error) {
+    console.error("❌ Error al obtener clientes:", error);
+    res.status(500).json({ message: "Error en el servidor" });
+  }
 };
 
 // 📌 Eliminar un cliente
@@ -52,21 +60,23 @@ const deleteCliente = async (req, res) => {
   try {
     // Verificar si el cliente existe y si pertenece al usuario autenticado
     const cliente = await pool.query(
-    'SELECT * FROM clientes WHERE id = $1 AND usuario_id = $2',
+      "SELECT * FROM clientes WHERE id = $1 AND usuario_id = $2",
       [id, usuario_id]
     );
 
     if (cliente.rows.length === 0) {
-      return res.status(404).json({ message: 'Cliente no encontrado o no autorizado' });
+      return res
+        .status(404)
+        .json({ message: "Cliente no encontrado o no autorizado" });
     }
 
     // Eliminar el cliente
-    await pool.query('DELETE FROM clientes WHERE id = $1', [id]);
+    await pool.query("DELETE FROM clientes WHERE id = $1", [id]);
 
-    res.json({ message: 'Cliente eliminado con éxito' });
+    res.json({ message: "Cliente eliminado con éxito" });
   } catch (error) {
-    console.error('❌ Error al eliminar cliente:', error);
-    res.status(500).json({ message: 'Error en el servidor' });
+    console.error("❌ Error al eliminar cliente:", error);
+    res.status(500).json({ message: "Error en el servidor" });
   }
 };
 
@@ -77,10 +87,12 @@ const updateCliente = async (req, res) => {
 
   try {
     // Verificar si el cliente existe y pertenece al usuario autenticado
-    const cliente = await pool.query('SELECT * FROM clientes WHERE id = $1', [id]);
+    const cliente = await pool.query("SELECT * FROM clientes WHERE id = $1", [
+      id,
+    ]);
 
     if (cliente.rows.length === 0) {
-      return res.status(404).json({ message: 'Cliente no encontrado' });
+      return res.status(404).json({ message: "Cliente no encontrado" });
     }
 
     // Actualizar solo los campos proporcionados en la solicitud
@@ -92,15 +104,28 @@ const updateCliente = async (req, res) => {
            direccion_fiscal = COALESCE($4, direccion_fiscal)
        WHERE id = $5
        RETURNING *`,
-      [nombre || null, email || null, telefono || null, direccion_fiscal || null, id]
+      [
+        nombre || null,
+        email || null,
+        telefono || null,
+        direccion_fiscal || null,
+        id,
+      ]
     );
 
-    res.json({ message: 'Cliente actualizado con éxito', cliente: updatedCliente.rows[0] });
-
+    res.json({
+      message: "Cliente actualizado con éxito",
+      cliente: updatedCliente.rows[0],
+    });
   } catch (error) {
-    console.error('❌ Error al actualizar cliente:', error);
-    res.status(500).json({ message: 'Error en el servidor' });
+    console.error("❌ Error al actualizar cliente:", error);
+    res.status(500).json({ message: "Error en el servidor" });
   }
 };
 
-module.exports = { createCliente, getClientesByUser, deleteCliente, updateCliente };
+module.exports = {
+  createCliente,
+  getClientesByUser,
+  deleteCliente,
+  updateCliente,
+};
