@@ -10,7 +10,6 @@ const { verifyToken, verifyAdmin } = require("../middlewares/authMiddleware");
 
 const router = express.Router();
 
-// Middleware para manejar errores de validación
 const validateRequest = (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -19,10 +18,8 @@ const validateRequest = (req, res, next) => {
   next();
 };
 
-// Ruta para obtener todos los usuarios (solo admin)
 router.get("/", verifyToken, verifyAdmin, getAllUsers);
 
-// Ruta para obtener un usuario por ID (cualquier usuario autenticado)
 router.get(
   "/:id",
   verifyToken,
@@ -31,7 +28,6 @@ router.get(
   getUserById
 );
 
-// Actualizar datos de usuario (Debe estar autenticado)
 router.put(
   "/:id",
   verifyToken,
@@ -54,7 +50,6 @@ router.put(
   updateUser
 );
 
-// Eliminar usuario (Solo Admin)
 router.delete(
   "/:id",
   verifyToken,

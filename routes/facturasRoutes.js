@@ -11,7 +11,6 @@ const { body, param, validationResult } = require("express-validator");
 
 const router = express.Router();
 
-// Middleware para manejar errores de validación
 const validateRequest = (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -20,7 +19,6 @@ const validateRequest = (req, res, next) => {
   next();
 };
 
-// 📌 Crear una factura (Solo usuarios autenticados)
 router.post(
   "/",
   verifyToken,
@@ -57,10 +55,8 @@ router.post(
   createFactura
 );
 
-// Obtener todas las facturas del usuario autenticado
 router.get("/", verifyToken, getFacturasByUser);
 
-// 📌 Obtener detalles de una factura
 router.get(
   "/:id",
   verifyToken,
@@ -73,7 +69,6 @@ router.get(
   getFacturaById
 );
 
-// 📌 Actualizar una factura (Solo usuarios autenticados)
 router.put(
   "/:id",
   verifyToken,
@@ -112,7 +107,6 @@ router.put(
   updateFactura
 );
 
-// 📌 Eliminar una factura
 router.delete(
   "/:id",
   verifyToken,

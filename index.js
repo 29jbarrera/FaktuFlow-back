@@ -26,7 +26,6 @@ app.get("/test", async (req, res) => {
   }
 });
 
-// Rutas
 app.use("/api/auth", authRoutes);
 app.use("/api/usuarios", usuariosRoutes);
 app.use("/api/clientes", clientesRoutes);

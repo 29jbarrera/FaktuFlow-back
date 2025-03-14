@@ -10,7 +10,6 @@ const { body, param, validationResult } = require("express-validator");
 
 const router = express.Router();
 
-// Middleware para manejar errores de validación
 const validateRequest = (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -19,7 +18,6 @@ const validateRequest = (req, res, next) => {
   next();
 };
 
-// 📌 Registrar un gasto (Solo usuarios autenticados)
 router.post(
   "/",
   verifyToken,
@@ -52,10 +50,8 @@ router.post(
   createGasto
 );
 
-// 📌 Obtener los gastos del usuario autenticado
 router.get("/", verifyToken, getGastos);
 
-// 📌 Actualizar un gasto (Solo usuario autenticado)
 router.put(
   "/:id",
   verifyToken,
@@ -90,7 +86,6 @@ router.put(
   updateGasto
 );
 
-// 📌 Eliminar un gasto (Solo usuario autenticado)
 router.delete(
   "/:id",
   verifyToken,
