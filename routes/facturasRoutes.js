@@ -1,5 +1,6 @@
 const express = require("express");
 const { verifyToken } = require("../middlewares/authMiddleware");
+const { upload } = require("../middlewares/multer");
 const {
   createFactura,
   getFacturasByUser,
@@ -22,10 +23,8 @@ const validateRequest = (req, res, next) => {
 router.post(
   "/",
   verifyToken,
+  upload.single("archivo"),
   [
-    body("usuario_id")
-      .isInt()
-      .withMessage("El usuario_id debe ser un número entero"),
     body("importe")
       .isFloat({ min: 0 })
       .withMessage("El importe debe ser un número mayor o igual a 0"),

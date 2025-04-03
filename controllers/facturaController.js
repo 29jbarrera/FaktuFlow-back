@@ -4,26 +4,28 @@ const createFactura = async (req, res) => {
   const { cliente_id, fecha_emision, importe, estado, numero, descripcion } =
     req.body;
   const usuario_id = req.user.id;
+  const archivo = req.file ? req.file.filename : null;
 
   try {
-    if (!fecha_emision || !importe || estado === undefined) {
+    if (!fecha_emision || !importe || estado === undefined || !cliente_id) {
       return res.status(400).json({
-        message: "Fecha de emisión, importe y estado son obligatorios",
+        message: "Fecha de emisión, importe, cliente y estado son obligatorios",
       });
     }
 
     const newFactura = await pool.query(
-      `INSERT INTO facturas (usuario_id, cliente_id, fecha_emision, importe, estado, numero, descripcion) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7) 
+      `INSERT INTO facturas (usuario_id, cliente_id, fecha_emision, importe, estado, numero, descripcion, archivo) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
        RETURNING *`,
       [
         usuario_id,
-        cliente_id || null,
+        cliente_id,
         fecha_emision,
         importe,
         estado,
         numero || null,
         descripcion || null,
+        archivo || null,
       ]
     );
 
