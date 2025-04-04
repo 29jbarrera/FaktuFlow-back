@@ -42,12 +42,15 @@ const createFactura = async (req, res) => {
 const getFacturasByUser = async (req, res) => {
   const usuarioId = req.user.id;
   const page = parseInt(req.query.page) || 1;
-  const limit = parseInt(req.query.limit) || 10;
+  const limit = parseInt(req.query.limit) || 5;
   const offset = (page - 1) * limit;
+
+  const sortField = req.query.sortField || "fecha_emision";
+  const sortOrder = req.query.sortOrder === "1" ? "ASC" : "DESC";
 
   try {
     const result = await pool.query(
-      `SELECT * FROM facturas WHERE usuario_id = $1 LIMIT $2 OFFSET $3`,
+      `SELECT * FROM facturas WHERE usuario_id = $1 ORDER BY ${sortField} ${sortOrder} LIMIT $2 OFFSET $3`,
       [usuarioId, limit, offset]
     );
 
@@ -57,12 +60,15 @@ const getFacturasByUser = async (req, res) => {
     );
 
     const totalCount = totalCountResult.rows[0].count;
-    const totalPages = Math.ceil(totalCount / limit);
+
+    const facturasConUrl = result.rows.map((factura) => ({
+      ...factura,
+      archivo_url: `http://localhost:3000/uploads/${factura.archivo}`,
+    }));
 
     res.status(200).json({
-      facturas: result.rows,
+      facturas: facturasConUrl,
       total: totalCount,
-      totalPages: totalPages,
     });
   } catch (error) {
     console.error("❌ Error al obtener las facturas:", error);
