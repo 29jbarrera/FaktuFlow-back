@@ -1,32 +1,42 @@
 const multer = require("multer");
 const path = require("path");
+const fs = require("fs");
 
-// Configuración de Multer
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, "uploads/"); // Carpeta donde se guardarán los archivos
+    const userId = req.user.id;
+
+    const userDir = path.join(__dirname, "../uploads", String(userId));
+
+    fs.mkdirSync(userDir, { recursive: true });
+
+    cb(null, userDir);
   },
+
   filename: (req, file, cb) => {
-    cb(null, `${Date.now()}-${file.originalname}`);
+    const uniqueName = `${Date.now()}-${file.originalname}`;
+    cb(null, uniqueName);
   },
 });
 
 const fileFilter = (req, file, cb) => {
-  const filetypes = /pdf|jpg|jpeg|png/;
-  const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
-  const mimetype = filetypes.test(file.mimetype);
+  const allowedTypes = /pdf|jpg|jpeg|png/;
+  const extname = allowedTypes.test(
+    path.extname(file.originalname).toLowerCase()
+  );
+  const mimetype = allowedTypes.test(file.mimetype);
 
   if (extname && mimetype) {
-    return cb(null, true);
+    cb(null, true);
   } else {
-    return cb(new Error("Solo se permiten archivos PDF, JPG o PNG"));
+    cb(new Error("Solo se permiten archivos PDF, JPG o PNG"));
   }
 };
 
 const upload = multer({
-  storage: storage,
-  fileFilter: fileFilter,
-  limits: { fileSize: 10 * 1024 * 1024 }, // Tamaño máximo de 10MB
+  storage,
+  fileFilter,
+  limits: { fileSize: 10 * 1024 * 1024 },
 });
 
 module.exports = { upload };

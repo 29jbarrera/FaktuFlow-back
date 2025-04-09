@@ -169,15 +169,16 @@ const deleteFactura = async (req, res) => {
 
     const archivo = factura.rows[0].archivo;
 
-    // Eliminar archivo si existe
     if (archivo) {
-      const filePath = path.join(__dirname, "..", "uploads", archivo);
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
+      const filePath = path.join(
+        __dirname,
+        "..",
+        "uploads",
+        String(usuario_id),
+        archivo
+      );
     }
 
-    // Eliminar la factura de la DB
     await pool.query(`DELETE FROM facturas WHERE id = $1 AND usuario_id = $2`, [
       id,
       usuario_id,
