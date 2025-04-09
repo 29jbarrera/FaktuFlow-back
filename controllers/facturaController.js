@@ -1,4 +1,7 @@
 const pool = require("../db");
+const fs = require("fs");
+const path = require("path");
+const UPLOADS_BASE_URL = process.env.UPLOADS_BASE_URL;
 
 const createFactura = async (req, res) => {
   const { cliente_id, fecha_emision, importe, estado, numero, descripcion } =
@@ -35,6 +38,14 @@ const createFactura = async (req, res) => {
     });
   } catch (error) {
     console.error("❌ Error al crear factura:", error);
+
+    // Detectar violación de restricción UNIQUE en PostgreSQL
+    if (error.code === "23505" && error.constraint === "facturas_numero_key") {
+      return res.status(400).json({
+        message: "Ya existe una factura con ese número.",
+      });
+    }
+
     res.status(500).json({ message: "Error en el servidor" });
   }
 };
@@ -63,7 +74,9 @@ const getFacturasByUser = async (req, res) => {
 
     const facturasConUrl = result.rows.map((factura) => ({
       ...factura,
-      archivo_url: `http://localhost:3000/uploads/${factura.archivo}`,
+      archivo_url: factura.archivo
+        ? `${UPLOADS_BASE_URL}/${factura.archivo}`
+        : null,
     }));
 
     res.status(200).json({
@@ -154,6 +167,17 @@ const deleteFactura = async (req, res) => {
       return res.status(404).json({ message: "Factura no encontrada" });
     }
 
+    const archivo = factura.rows[0].archivo;
+
+    // Eliminar archivo si existe
+    if (archivo) {
+      const filePath = path.join(__dirname, "..", "uploads", archivo);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    }
+
+    // Eliminar la factura de la DB
     await pool.query(`DELETE FROM facturas WHERE id = $1 AND usuario_id = $2`, [
       id,
       usuario_id,
