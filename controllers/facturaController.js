@@ -244,10 +244,64 @@ const deleteFactura = async (req, res) => {
   }
 };
 
+const deleteArchivoFactura = async (req, res) => {
+  const usuario_id = req.user.id;
+  const { id } = req.params;
+
+  try {
+    const facturaResult = await pool.query(
+      `SELECT * FROM facturas WHERE id = $1 AND usuario_id = $2`,
+      [id, usuario_id]
+    );
+
+    if (facturaResult.rows.length === 0) {
+      return res.status(404).json({ message: "Factura no encontrada" });
+    }
+
+    const factura = facturaResult.rows[0];
+
+    if (!factura.archivo) {
+      return res
+        .status(400)
+        .json({ message: "La factura no tiene archivo asociado" });
+    }
+
+    const filePath = path.join(
+      __dirname,
+      "..",
+      "uploads",
+      String(usuario_id),
+      factura.archivo
+    );
+
+    // Intentamos borrar el archivo del disco
+    fs.unlink(filePath, async (err) => {
+      if (err) {
+        console.error("❌ Error al eliminar archivo:", err);
+        return res
+          .status(500)
+          .json({ message: "Error al eliminar el archivo del sistema" });
+      }
+
+      // Luego actualizamos la base de datos para dejar el campo archivo en null
+      await pool.query(
+        `UPDATE facturas SET archivo = NULL WHERE id = $1 AND usuario_id = $2`,
+        [id, usuario_id]
+      );
+
+      res.json({ message: "Archivo eliminado correctamente" });
+    });
+  } catch (error) {
+    console.error("❌ Error al eliminar el archivo de la factura:", error);
+    res.status(500).json({ message: "Error en el servidor" });
+  }
+};
+
 module.exports = {
   createFactura,
   getFacturasByUser,
   getFacturaById,
   updateFactura,
   deleteFactura,
+  deleteArchivoFactura,
 };

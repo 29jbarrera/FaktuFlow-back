@@ -7,6 +7,7 @@ const {
   getFacturaById,
   updateFactura,
   deleteFactura,
+  deleteArchivoFactura,
 } = require("../controllers/facturaController");
 const { body, param, validationResult } = require("express-validator");
 
@@ -118,5 +119,7 @@ router.delete(
   validateRequest,
   deleteFactura
 );
+
+router.delete("/:id/archivo", verifyToken, deleteArchivoFactura);
 
 module.exports = router;
