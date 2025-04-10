@@ -61,7 +61,14 @@ const getFacturasByUser = async (req, res) => {
 
   try {
     const result = await pool.query(
-      `SELECT * FROM facturas WHERE usuario_id = $1 ORDER BY ${sortField} ${sortOrder} LIMIT $2 OFFSET $3`,
+      `
+      SELECT f.*, c.nombre AS cliente_nombre
+      FROM facturas f
+      LEFT JOIN clientes c ON f.cliente_id = c.id
+      WHERE f.usuario_id = $1
+      ORDER BY ${sortField} ${sortOrder}
+      LIMIT $2 OFFSET $3
+      `,
       [usuarioId, limit, offset]
     );
 
@@ -75,7 +82,7 @@ const getFacturasByUser = async (req, res) => {
     const facturasConUrl = result.rows.map((factura) => ({
       ...factura,
       archivo_url: factura.archivo
-        ? `${UPLOADS_BASE_URL}/${factura.archivo}`
+        ? `${UPLOADS_BASE_URL}/${factura.usuario_id}/${factura.archivo}`
         : null,
     }));
 
@@ -177,6 +184,15 @@ const deleteFactura = async (req, res) => {
         String(usuario_id),
         archivo
       );
+
+      fs.unlink(filePath, (err) => {
+        if (err) {
+          console.error("❌ Error al eliminar el archivo:", err);
+          return res
+            .status(500)
+            .json({ message: "Error al eliminar el archivo" });
+        }
+      });
     }
 
     await pool.query(`DELETE FROM facturas WHERE id = $1 AND usuario_id = $2`, [
