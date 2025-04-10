@@ -71,6 +71,7 @@ router.get(
 router.put(
   "/:id",
   verifyToken,
+  upload.single("archivo"),
   [
     param("id")
       .isInt()

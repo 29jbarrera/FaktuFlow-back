@@ -120,39 +120,76 @@ const getFacturaById = async (req, res) => {
 const updateFactura = async (req, res) => {
   const usuario_id = req.user.id;
   const { id } = req.params;
+  // Extraemos del body los campos que se pueden actualizar
   const { cliente_id, fecha_emision, importe, estado, numero, descripcion } =
     req.body;
 
   try {
-    const factura = await pool.query(
+    // Primero obtenemos la factura para validar que existe y obtener el archivo actual
+    const facturaResult = await pool.query(
       `SELECT * FROM facturas WHERE id = $1 AND usuario_id = $2`,
       [id, usuario_id]
     );
 
-    if (factura.rows.length === 0) {
+    if (facturaResult.rows.length === 0) {
       return res.status(404).json({ message: "Factura no encontrada" });
     }
 
-    const updatedFactura = await pool.query(
+    // Determinamos el nombre actual del archivo
+    let archivoActual = facturaResult.rows[0].archivo;
+
+    // Si existe un archivo en el request, lo usaremos para reemplazarlo
+    // De lo contrario, se mantiene el archivo existente
+    if (req.file) {
+      // Opcionalmente, elimina el archivo antiguo del sistema de archivos (si existe)
+      if (archivoActual) {
+        const oldFilePath = path.join(
+          __dirname,
+          "..",
+          "uploads",
+          String(usuario_id),
+          archivoActual
+        );
+        fs.unlink(oldFilePath, (err) => {
+          if (err) {
+            console.error("❌ Error al eliminar el archivo antiguo:", err);
+          }
+        });
+      }
+      archivoActual = req.file.filename;
+    }
+
+    // Actualizar factura en la base de datos. Se considera que si alguno de los campos es undefined se mantiene su valor anterior.
+    // Podrías usar una consulta dinámica o actualizar todos los campos. Aquí se usa UPDATE con todos los parámetros.
+    const updatedFacturaResult = await pool.query(
       `UPDATE facturas 
-       SET cliente_id = $1, fecha_emision = $2, importe = $3, estado = $4, numero = $5, descripcion = $6
-       WHERE id = $7 AND usuario_id = $8
+       SET cliente_id = $1,
+           fecha_emision = $2,
+           importe = $3,
+           estado = $4,
+           numero = $5,
+           descripcion = $6,
+           archivo = $7
+       WHERE id = $8 AND usuario_id = $9
        RETURNING *`,
       [
-        cliente_id || null,
-        fecha_emision,
-        importe,
-        estado,
-        numero || null,
-        descripcion || null,
+        cliente_id || facturaResult.rows[0].cliente_id,
+        fecha_emision || facturaResult.rows[0].fecha_emision,
+        importe || facturaResult.rows[0].importe,
+        estado !== undefined ? estado : facturaResult.rows[0].estado,
+        numero !== undefined ? numero : facturaResult.rows[0].numero,
+        descripcion !== undefined
+          ? descripcion
+          : facturaResult.rows[0].descripcion,
+        archivoActual || null,
         id,
         usuario_id,
       ]
     );
 
-    res.json({
+    res.status(200).json({
       message: "Factura actualizada con éxito",
-      factura: updatedFactura.rows[0],
+      factura: updatedFacturaResult.rows[0],
     });
   } catch (error) {
     console.error("❌ Error al actualizar factura:", error);
