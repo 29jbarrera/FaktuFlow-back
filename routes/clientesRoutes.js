@@ -54,17 +54,15 @@ router.put(
   verifyToken,
   [
     param("id").isInt().withMessage("El ID debe ser un número entero"),
-    body("nombre")
+    body("nombre").notEmpty().withMessage("El nombre es obligatorio"),
+    body("email")
       .optional()
-      .notEmpty()
-      .withMessage("El nombre no puede estar vacío"),
-    body("email").optional().isEmail().withMessage("El email no es válido"),
+      .isEmail()
+      .withMessage("El formato del email no es válido"),
     body("telefono")
       .optional()
-      .isString()
-      .withMessage("El teléfono debe ser una cadena de caracteres")
-      .isLength({ min: 6 })
-      .withMessage("El teléfono debe tener al menos 6 caracteres"),
+      .matches(/^\d{9}$/)
+      .withMessage("El teléfono debe tener exactamente 9 dígitos numéricos"),
   ],
   validateRequest,
   updateCliente
