@@ -1,9 +1,15 @@
 const pool = require("../db");
 
 const createCliente = async (req, res) => {
-  const { nombre, email, telefono, direccion_fiscal } = req.body;
+  const { nombre, email, telefono, direccion_fiscal, usuario_id } = req.body;
 
   try {
+    if (!usuario_id) {
+      return res
+        .status(400)
+        .json({ message: "El usuario no está autenticado" });
+    }
+
     const emailExists = await pool.query(
       "SELECT * FROM clientes WHERE email = $1",
       [email]
@@ -16,10 +22,16 @@ const createCliente = async (req, res) => {
     }
 
     const newCliente = await pool.query(
-      `INSERT INTO clientes (nombre, email, telefono, direccion_fiscal) 
-       VALUES ($1, $2, $3, $4) 
+      `INSERT INTO clientes (nombre, email, telefono, direccion_fiscal,usuario_id) 
+       VALUES ($1, $2, $3, $4, $5) 
        RETURNING *`,
-      [nombre, email || null, telefono || null, direccion_fiscal || null]
+      [
+        nombre,
+        email || null,
+        telefono || null,
+        direccion_fiscal || null,
+        usuario_id,
+      ]
     );
 
     res.status(201).json({

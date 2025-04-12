@@ -24,7 +24,10 @@ router.post(
   verifyToken,
   [
     body("nombre").notEmpty().withMessage("El nombre es obligatorio"),
-    body("email").optional().isEmail().withMessage("El email no es válido"),
+    body("email")
+      .optional()
+      .isEmail()
+      .withMessage("El formato del email no es válido"),
     body("telefono")
       .optional()
       .matches(/^\d{9}$/)
