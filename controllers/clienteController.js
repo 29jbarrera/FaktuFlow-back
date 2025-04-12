@@ -34,31 +34,61 @@ const createCliente = async (req, res) => {
 
 const getClientesByUser = async (req, res) => {
   const usuario_id = req.user.id;
-  const page = parseInt(req.query.page) || 1;
-  const limit = parseInt(req.query.limit) || 10;
-  const offset = (page - 1) * limit;
 
   try {
     const result = await pool.query(
-      "SELECT * FROM clientes WHERE usuario_id = $1 ORDER BY nombre ASC LIMIT $2 OFFSET $3",
-      [usuario_id, limit, offset]
-    );
-
-    const totalCountResult = await pool.query(
-      "SELECT COUNT(*) FROM clientes WHERE usuario_id = $1",
+      "SELECT id, nombre FROM clientes WHERE usuario_id = $1 ORDER BY nombre ASC",
       [usuario_id]
     );
 
-    const totalCount = totalCountResult.rows[0].count;
-    const totalPages = Math.ceil(totalCount / limit);
+    res.status(200).json({
+      clientes: result.rows,
+    });
+  } catch (error) {
+    console.error("❌ Error al obtener clientes:", error);
+    res.status(500).json({ message: "Error al obtener los clientes." });
+  }
+};
+
+const getClientesByUserTable = async (req, res) => {
+  const usuarioId = req.user.id;
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 5;
+  const offset = (page - 1) * limit;
+
+  const sortField = req.query.sortField || "nombre";
+  const sortOrder = req.query.sortOrder === "1" ? "ASC" : "DESC";
+
+  const allowedFields = ["nombre", "email", "telefono", "direccion_fiscal"];
+  if (!allowedFields.includes(sortField)) {
+    return res.status(400).json({ message: "Campo de ordenación no válido." });
+  }
+
+  try {
+    const result = await pool.query(
+      `
+      SELECT id, nombre, email, telefono, direccion_fiscal
+      FROM clientes
+      WHERE usuario_id = $1
+      ORDER BY ${sortField} ${sortOrder}
+      LIMIT $2 OFFSET $3
+      `,
+      [usuarioId, limit, offset]
+    );
+
+    const totalCountResult = await pool.query(
+      `SELECT COUNT(*) FROM clientes WHERE usuario_id = $1`,
+      [usuarioId]
+    );
+
+    const totalCount = parseInt(totalCountResult.rows[0].count);
 
     res.status(200).json({
       clientes: result.rows,
       total: totalCount,
-      totalPages: totalPages,
     });
   } catch (error) {
-    console.error("❌ Error al obtener clientes:", error);
+    console.error("❌ Error al obtener los clientes paginados:", error);
     res.status(500).json({ message: "Error al obtener los clientes." });
   }
 };
@@ -133,4 +163,5 @@ module.exports = {
   getClientesByUser,
   deleteCliente,
   updateCliente,
+  getClientesByUserTable,
 };

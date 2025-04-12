@@ -5,6 +5,7 @@ const {
   getClientesByUser,
   deleteCliente,
   updateCliente,
+  getClientesByUserTable,
 } = require("../controllers/clienteController");
 const { body, param, validationResult } = require("express-validator");
 
@@ -34,6 +35,8 @@ router.post(
 );
 
 router.get("/", verifyToken, getClientesByUser);
+
+router.get("/table", verifyToken, getClientesByUserTable);
 
 router.delete(
   "/:id",
