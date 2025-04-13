@@ -71,28 +71,39 @@ const getClientesByUserTable = async (req, res) => {
   const sortField = req.query.sortField || "nombre";
   const sortOrder = req.query.sortOrder === "1" ? "ASC" : "DESC";
 
+  const search = req.query.search?.toLowerCase()?.trim() || "";
+
   const allowedFields = ["nombre", "email", "telefono", "direccion_fiscal"];
   if (!allowedFields.includes(sortField)) {
     return res.status(400).json({ message: "Campo de ordenación no válido." });
   }
 
   try {
-    const result = await pool.query(
-      `
+    const queryParams = [usuarioId];
+    let whereClause = `WHERE usuario_id = $1`;
+
+    if (search) {
+      queryParams.push(`%${search}%`);
+      whereClause += ` AND LOWER(nombre) ILIKE $2`;
+    }
+
+    const paginatedQuery = `
       SELECT id, nombre, email, telefono, direccion_fiscal
       FROM clientes
-      WHERE usuario_id = $1
+      ${whereClause}
       ORDER BY ${sortField} ${sortOrder}
-      LIMIT $2 OFFSET $3
-      `,
-      [usuarioId, limit, offset]
-    );
+      LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}
+    `;
 
-    const totalCountResult = await pool.query(
-      `SELECT COUNT(*) FROM clientes WHERE usuario_id = $1`,
-      [usuarioId]
-    );
+    const totalQuery = `
+      SELECT COUNT(*) FROM clientes
+      ${whereClause}
+    `;
 
+    const paginatedParams = [...queryParams, limit, offset];
+
+    const result = await pool.query(paginatedQuery, paginatedParams);
+    const totalCountResult = await pool.query(totalQuery, queryParams);
     const totalCount = parseInt(totalCountResult.rows[0].count);
 
     res.status(200).json({
