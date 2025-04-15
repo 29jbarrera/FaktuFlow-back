@@ -14,7 +14,7 @@ const createGasto = async (req, res) => {
 
     const newGasto = await pool.query(
       `INSERT INTO gastos (nombre_gasto, usuario_id, categoria, fecha, importe_total, descripcion) 
-       VALUES ($1, $2, $3, COALESCE($4, NOW()), $5, $6) |
+       VALUES ($1, $2, $3, COALESCE($4, NOW()), $5, $6)
        RETURNING *`,
       [
         nombre_gasto,
@@ -38,30 +38,54 @@ const createGasto = async (req, res) => {
 const getGastos = async (req, res) => {
   const usuario_id = req.user.id;
   const page = parseInt(req.query.page) || 1;
-  const limit = parseInt(req.query.limit) || 10;
+  const limit = parseInt(req.query.limit) || 5;
   const offset = (page - 1) * limit;
 
+  const sortField = req.query.sortField || "fecha";
+  const sortOrder = req.query.sortOrder === "1" ? "ASC" : "DESC";
+
+  const search = req.query.search?.toLowerCase()?.trim() || "";
+
+  // Campos válidos para ordenar (según tu base de datos)
+  const allowedFields = ["nombre_gasto", "categoria", "fecha", "importe_total"];
+  if (!allowedFields.includes(sortField)) {
+    return res.status(400).json({ message: "Campo de ordenación no válido." });
+  }
+
   try {
-    const result = await pool.query(
-      "SELECT * FROM gastos WHERE usuario_id = $1 ORDER BY fecha DESC LIMIT $2 OFFSET $3",
-      [usuario_id, limit, offset]
-    );
+    const queryParams = [usuario_id];
+    let whereClause = `WHERE usuario_id = $1`;
 
-    const totalCountResult = await pool.query(
-      "SELECT COUNT(*) FROM gastos WHERE usuario_id = $1",
-      [usuario_id]
-    );
+    if (search) {
+      queryParams.push(`%${search}%`);
+      whereClause += ` AND LOWER(descripcion) ILIKE $2`;
+    }
 
-    const totalCount = totalCountResult.rows[0].count;
-    const totalPages = Math.ceil(totalCount / limit);
+    const paginatedQuery = `
+      SELECT id, nombre_gasto, categoria, fecha, importe_total, descripcion
+      FROM gastos
+      ${whereClause}
+      ORDER BY ${sortField} ${sortOrder}
+      LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}
+    `;
+
+    const totalQuery = `
+      SELECT COUNT(*) FROM gastos
+      ${whereClause}
+    `;
+
+    const paginatedParams = [...queryParams, limit, offset];
+
+    const result = await pool.query(paginatedQuery, paginatedParams);
+    const totalCountResult = await pool.query(totalQuery, queryParams);
+    const totalCount = parseInt(totalCountResult.rows[0].count);
 
     res.status(200).json({
       gastos: result.rows,
       total: totalCount,
-      totalPages: totalPages,
     });
   } catch (error) {
-    console.error("❌ Error al obtener gastos:", error);
+    console.error("❌ Error al obtener los gastos paginados:", error);
     res.status(500).json({ message: "Error al obtener los gastos." });
   }
 };

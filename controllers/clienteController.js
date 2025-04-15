@@ -88,7 +88,7 @@ const getClientesByUserTable = async (req, res) => {
     }
 
     const paginatedQuery = `
-      SELECT id, nombre, email, telefono, direccion_fiscal
+      SELECT *
       FROM clientes
       ${whereClause}
       ORDER BY ${sortField} ${sortOrder}
