@@ -29,7 +29,17 @@ router.post(
       .withMessage("El nombre del ingreso debe ser una cadena de caracteres"),
     body("categoria")
       .notEmpty()
-      .withMessage("La categoría del ingreso es obligatoria"),
+      .isIn([
+        "Cosecha Pipas",
+        "Cosecha Trigo",
+        "Cosecha Garbanzo",
+        "Subvención",
+        "Otros",
+        "Salario",
+      ])
+      .withMessage(
+        "La categoría debe ser uno de los siguientes valores: 'Cosecha Pipas', 'Cosecha Trigo', 'Cosecha Garbanzo', 'Subvención', 'Otros', 'Salario'"
+      ),
     body("importe_total")
       .isFloat({ min: 0 })
       .withMessage("El importe total debe ser un número mayor o igual a 0"),
@@ -61,9 +71,16 @@ router.put(
       .withMessage("El nombre del ingreso debe ser una cadena de caracteres"),
     body("categoria")
       .optional()
-      .isIn(["salario", "venta", "otros"])
+      .isIn([
+        "Cosecha Pipas",
+        "Cosecha Trigo",
+        "Cosecha Garbanzo",
+        "Subvención",
+        "Otros",
+        "Salario",
+      ])
       .withMessage(
-        "La categoría debe ser uno de los siguientes valores: 'salario', 'venta', 'otros'"
+        "La categoría debe ser uno de los siguientes valores: 'Cosecha Pipas', 'Cosecha Trigo', 'Cosecha Garbanzo', 'Subvención', 'Otros', 'Salario'"
       ),
     body("importe_total")
       .optional()

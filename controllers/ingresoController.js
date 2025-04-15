@@ -44,30 +44,59 @@ const createIngreso = async (req, res) => {
 const getIngresos = async (req, res) => {
   const usuario_id = req.user.id;
   const page = parseInt(req.query.page) || 1;
-  const limit = parseInt(req.query.limit) || 10;
+  const limit = parseInt(req.query.limit) || 5;
   const offset = (page - 1) * limit;
 
-  try {
-    const ingresos = await pool.query(
-      "SELECT * FROM ingresos WHERE usuario_id = $1 ORDER BY fecha_ingreso DESC LIMIT $2 OFFSET $3",
-      [usuario_id, limit, offset]
-    );
+  const sortField = req.query.sortField || "fecha_ingreso";
+  const sortOrder = req.query.sortOrder === "1" ? "ASC" : "DESC";
 
-    const totalCountResult = await pool.query(
-      "SELECT COUNT(*) FROM ingresos WHERE usuario_id = $1",
-      [usuario_id]
-    );
-    const totalCount = totalCountResult.rows[0].count;
-    const totalPages = Math.ceil(totalCount / limit);
+  const search = req.query.search?.toLowerCase()?.trim() || "";
+
+  const allowedFields = [
+    "nombre_ingreso",
+    "categoria",
+    "fecha_ingreso",
+    "importe_total",
+  ];
+  if (!allowedFields.includes(sortField)) {
+    return res.status(400).json({ message: "Campo de ordenación no válido." });
+  }
+
+  try {
+    const queryParams = [usuario_id];
+    let whereClause = `WHERE usuario_id = $1`;
+
+    if (search) {
+      queryParams.push(`%${search}%`);
+      whereClause += ` AND LOWER(descripcion) ILIKE $2`;
+    }
+
+    const paginatedQuery = `
+      SELECT id, nombre_ingreso, categoria, fecha_ingreso, importe_total, descripcion
+      FROM ingresos
+      ${whereClause}
+      ORDER BY ${sortField} ${sortOrder}
+      LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}
+    `;
+
+    const totalQuery = `
+      SELECT COUNT(*) FROM ingresos
+      ${whereClause}
+    `;
+
+    const paginatedParams = [...queryParams, limit, offset];
+
+    const result = await pool.query(paginatedQuery, paginatedParams);
+    const totalCountResult = await pool.query(totalQuery, queryParams);
+    const totalCount = parseInt(totalCountResult.rows[0].count);
 
     res.status(200).json({
-      ingresos: ingresos.rows,
+      ingresos: result.rows,
       total: totalCount,
-      totalPages: totalPages,
     });
   } catch (error) {
-    console.error("❌ Error al obtener ingresos:", error);
-    res.status(500).json({ message: "Error en el servidor" });
+    console.error("❌ Error al obtener los ingresos paginados:", error);
+    res.status(500).json({ message: "Error al obtener los ingresos." });
   }
 };
 
