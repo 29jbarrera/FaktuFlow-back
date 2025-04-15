@@ -30,9 +30,9 @@ router.post(
     body("categoria")
       .notEmpty()
       .withMessage("La categoría del gasto es obligatoria")
-      .isIn(["alimentación", "transporte", "otros"])
+      .isIn(["Mano de obra", "Transporte", "Cuota", "Otros"])
       .withMessage(
-        "La categoría debe ser uno de los siguientes valores: 'alimentación', 'transporte', 'otros'"
+        "La categoría debe ser uno de los siguientes valores: 'Mano de obra', 'Transporte', 'Cuota', 'Otros'"
       ),
     body("importe_total")
       .isFloat({ min: 0 })
@@ -65,9 +65,9 @@ router.put(
       .withMessage("El nombre del gasto debe ser una cadena de caracteres"),
     body("categoria")
       .optional()
-      .isIn(["alimentación", "transporte", "otros"])
+      .isIn(["Mano de obra", "Transporte", "Cuota", "Otros"])
       .withMessage(
-        "La categoría debe ser uno de los siguientes valores: 'alimentación', 'transporte', 'otros'"
+        "La categoría debe ser uno de los siguientes valores: 'Mano de obra', 'Transporte', 'Cuota', 'Otros'"
       ),
     body("importe_total")
       .optional()
