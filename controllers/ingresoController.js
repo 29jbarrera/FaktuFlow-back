@@ -163,11 +163,7 @@ const deleteIngreso = async (req, res) => {
         .json({ message: "Ingreso no encontrado o no autorizado" });
     }
 
-    await pool.query("DELETE FROM ingresos WHERE id = $1 AND usuario_id = $2", [
-      id,
-      usuario_id,
-    ]);
-
+    await pool.query("DELETE FROM ingresos WHERE id = $1", [id]);
     res.status(200).json({ message: "Ingreso eliminado con éxito" });
   } catch (error) {
     console.error("❌ Error al eliminar ingreso:", error);
