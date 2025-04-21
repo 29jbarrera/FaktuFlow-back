@@ -59,25 +59,44 @@ const getFacturasByUser = async (req, res) => {
   const sortField = req.query.sortField || "fecha_emision";
   const sortOrder = req.query.sortOrder === "1" ? "ASC" : "DESC";
 
+  const search = req.query.search?.toLowerCase().trim() || "";
+  const searchPattern = `%${search.replace(/\s/g, "")}%`;
+
   try {
-    const result = await pool.query(
-      `
+    const queryParams = [usuarioId];
+    let whereClause = `WHERE f.usuario_id = $1`;
+
+    if (search) {
+      queryParams.push(searchPattern);
+      whereClause += `
+        AND (
+          REPLACE(LOWER(f.numero), ' ', '') LIKE $2 OR
+          REPLACE(LOWER(f.descripcion), ' ', '') LIKE $2 OR
+          TO_CHAR(f.fecha_emision, 'DD/MM/YYYY') LIKE $2
+        )
+      `;
+    }
+
+    const orderClause = `ORDER BY ${sortField} ${sortOrder}`;
+    const paginatedQuery = `
       SELECT f.*, c.nombre AS cliente_nombre
       FROM facturas f
       LEFT JOIN clientes c ON f.cliente_id = c.id
-      WHERE f.usuario_id = $1
-      ORDER BY ${sortField} ${sortOrder}
-      LIMIT $2 OFFSET $3
-      `,
-      [usuarioId, limit, offset]
-    );
+      ${whereClause}
+      ${orderClause}
+      LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}
+    `;
 
+    const paginatedParams = [...queryParams, limit, offset];
+
+    const result = await pool.query(paginatedQuery, paginatedParams);
+
+    // total de todas las facturas del usuario, sin filtro
     const totalCountResult = await pool.query(
       `SELECT COUNT(*) FROM facturas WHERE usuario_id = $1`,
       [usuarioId]
     );
-
-    const totalCount = totalCountResult.rows[0].count;
+    const totalCount = parseInt(totalCountResult.rows[0].count);
 
     const facturasConUrl = result.rows.map((factura) => ({
       ...factura,

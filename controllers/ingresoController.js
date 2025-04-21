@@ -68,7 +68,14 @@ const getIngresos = async (req, res) => {
 
     if (search) {
       queryParams.push(`%${search}%`);
-      whereClause += ` AND LOWER(descripcion) ILIKE $2`;
+      whereClause += `
+        AND (
+          LOWER(nombre_ingreso) ILIKE $2 OR
+          LOWER(categoria) ILIKE $2 OR
+          LOWER(descripcion) ILIKE $2 OR
+          TO_CHAR(fecha_ingreso, 'DD/MM/YYYY') LIKE $2
+        )
+      `;
     }
 
     const paginatedQuery = `
