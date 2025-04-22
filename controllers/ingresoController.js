@@ -119,27 +119,34 @@ const updateIngreso = async (req, res) => {
   const usuario_id = req.user.id;
 
   try {
-    const ingreso = await pool.query(
+    const ingresoQuery = await pool.query(
       "SELECT * FROM ingresos WHERE id = $1 AND usuario_id = $2",
       [id, usuario_id]
     );
-    if (ingreso.rows.length === 0) {
+
+    if (ingresoQuery.rows.length === 0) {
       return res
         .status(404)
         .json({ message: "Ingreso no encontrado o no autorizado" });
     }
 
+    const ingreso = ingresoQuery.rows[0];
+
     const updatedIngreso = await pool.query(
       `UPDATE ingresos
-       SET nombre_ingreso = $1, categoria = $2, fecha_ingreso = $3, importe_total = $4, descripcion = $5
+       SET nombre_ingreso = $1,
+           categoria = $2,
+           fecha_ingreso = $3,
+           importe_total = $4,
+           descripcion = $5
        WHERE id = $6 AND usuario_id = $7
        RETURNING *`,
       [
-        nombre_ingreso || ingreso.rows[0].nombre_ingreso,
-        categoria || ingreso.rows[0].categoria,
-        fecha_ingreso || ingreso.rows[0].fecha_ingreso,
-        importe_total || ingreso.rows[0].importe_total,
-        descripcion || ingreso.rows[0].descripcion,
+        nombre_ingreso !== undefined ? nombre_ingreso : ingreso.nombre_ingreso,
+        categoria !== undefined ? categoria : ingreso.categoria,
+        fecha_ingreso !== undefined ? fecha_ingreso : ingreso.fecha_ingreso,
+        importe_total !== undefined ? importe_total : ingreso.importe_total,
+        descripcion !== undefined ? descripcion : ingreso.descripcion,
         id,
         usuario_id,
       ]

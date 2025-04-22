@@ -143,7 +143,7 @@ const deleteCliente = async (req, res) => {
 
 const updateCliente = async (req, res) => {
   const { id } = req.params;
-  const { nombre, email, telefono, direccion_fiscal } = req.body;
+  let { nombre, email, telefono, direccion_fiscal } = req.body;
 
   try {
     const cliente = await pool.query("SELECT * FROM clientes WHERE id = $1", [
@@ -153,22 +153,20 @@ const updateCliente = async (req, res) => {
     if (cliente.rows.length === 0) {
       return res.status(404).json({ message: "Cliente no encontrado" });
     }
+    email = email?.trim() === "" ? null : email;
+    telefono = telefono === 0 || telefono === "" ? null : telefono;
+    direccion_fiscal =
+      direccion_fiscal?.trim() === "" ? null : direccion_fiscal;
 
     const updatedCliente = await pool.query(
       `UPDATE clientes 
        SET nombre = COALESCE($1, nombre),
-           email = COALESCE($2, email),
-           telefono = COALESCE($3, telefono),
-           direccion_fiscal = COALESCE($4, direccion_fiscal)
+           email = $2,
+           telefono = $3,
+           direccion_fiscal = $4
        WHERE id = $5
        RETURNING *`,
-      [
-        nombre || null,
-        email || null,
-        telefono || null,
-        direccion_fiscal || null,
-        id,
-      ]
+      [nombre, email, telefono, direccion_fiscal, id]
     );
 
     res.json({

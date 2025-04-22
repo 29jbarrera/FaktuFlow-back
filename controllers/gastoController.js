@@ -119,14 +119,7 @@ const updateGasto = async (req, res) => {
          SET nombre_gasto = $1, categoria = $2, fecha = COALESCE($3, fecha), 
              importe_total = $4, descripcion = COALESCE($5, descripcion) 
          WHERE id = $6 RETURNING *`,
-      [
-        nombre_gasto,
-        categoria,
-        fecha || null,
-        importe_total,
-        descripcion || null,
-        id,
-      ]
+      [nombre_gasto, categoria, fecha || null, importe_total, descripcion, id]
     );
 
     res.json({
