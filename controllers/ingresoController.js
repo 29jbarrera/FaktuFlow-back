@@ -185,4 +185,85 @@ const deleteIngreso = async (req, res) => {
   }
 };
 
-module.exports = { createIngreso, getIngresos, deleteIngreso, updateIngreso };
+const getResumenIngresos = async (req, res) => {
+  const usuario_id = req.user.id;
+  const year = parseInt(req.query.year);
+
+  if (!year || isNaN(year)) {
+    return res.status(400).json({ message: "Año inválido" });
+  }
+
+  try {
+    // Obtener resumen general
+    const resumenQuery = await pool.query(
+      `SELECT 
+        COUNT(*) AS total_ingresos,
+        SUM(importe_total) AS total_importe,
+        ROUND(AVG(importe_total), 2) AS promedio_importe
+      FROM ingresos
+      WHERE usuario_id = $1 AND EXTRACT(YEAR FROM fecha_ingreso) = $2`,
+      [usuario_id, year]
+    );
+
+    const resumen = resumenQuery.rows[0];
+
+    // Agrupado mensual
+    const mensualQuery = await pool.query(
+      `SELECT 
+        TO_CHAR(fecha_ingreso, 'MM') AS mes,
+        COUNT(*) AS total,
+        SUM(importe_total) AS total_importe
+      FROM ingresos
+      WHERE usuario_id = $1 AND EXTRACT(YEAR FROM fecha_ingreso) = $2
+      GROUP BY mes
+      ORDER BY mes`,
+      [usuario_id, year]
+    );
+
+    // Armar todos los meses (Enero - Diciembre)
+    const meses = [
+      "01",
+      "02",
+      "03",
+      "04",
+      "05",
+      "06",
+      "07",
+      "08",
+      "09",
+      "10",
+      "11",
+      "12",
+    ];
+
+    const agrupadoMensual = meses.map((mes) => {
+      const found = mensualQuery.rows.find((row) => row.mes === mes);
+      return {
+        mes,
+        total: found ? parseInt(found.total) : 0,
+        totalImporte: found ? parseFloat(found.total_importe) : 0,
+      };
+    });
+
+    res.status(200).json({
+      year,
+      resumen: {
+        totalIngresos: parseInt(resumen.total_ingresos) || 0,
+        totalImporte: parseFloat(resumen.total_importe) || 0,
+        promedioImporte: parseFloat(resumen.promedio_importe) || 0,
+      },
+      mensual: agrupadoMensual,
+    });
+  } catch (error) {
+    console.error("❌ Error al obtener resumen de ingresos:", error);
+    res.status(500).json({ message: "Error en el servidor" });
+  }
+};
+
+module.exports = {
+  createIngreso,
+  getIngresos,
+  deleteIngreso,
+  updateIngreso,
+  getResumenIngresos,
+};

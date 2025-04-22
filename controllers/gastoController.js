@@ -222,8 +222,8 @@ const getResumenGastos = async (req, res) => {
     res.json({
       year,
       resumen: {
-        totalGastos: parseInt(resumen.total_gastos),
-        totalImporte: parseFloat(resumen.total_importe),
+        totalGastos: parseInt(resumen.total_gastos) || 0,
+        totalImporte: parseFloat(resumen.total_importe) || 0,
         promedioImporte: parseFloat(resumen.promedio_importe || 0),
       },
       mensual: agrupadoMensual,

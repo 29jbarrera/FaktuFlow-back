@@ -5,6 +5,7 @@ const {
   getIngresos,
   updateIngreso,
   deleteIngreso,
+  getResumenIngresos,
 } = require("../controllers/ingresoController");
 const { body, param, validationResult } = require("express-validator");
 
@@ -57,6 +58,8 @@ router.post(
 );
 
 router.get("/", verifyToken, getIngresos);
+
+router.get("/resumen", verifyToken, getResumenIngresos);
 
 router.put(
   "/:id",
