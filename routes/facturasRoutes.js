@@ -8,6 +8,7 @@ const {
   updateFactura,
   deleteFactura,
   deleteArchivoFactura,
+  getResumenFacturasPorYear,
 } = require("../controllers/facturaController");
 const { body, param, validationResult } = require("express-validator");
 
@@ -56,6 +57,8 @@ router.post(
 );
 
 router.get("/", verifyToken, getFacturasByUser);
+
+router.get("/resumen", verifyToken, getResumenFacturasPorYear);
 
 router.get(
   "/:id",

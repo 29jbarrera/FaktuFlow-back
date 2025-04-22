@@ -64,6 +64,8 @@ const login = async (req, res) => {
       usuario_id: user.rows[0].id,
       email: user.rows[0].email,
       rol: user.rows[0].rol,
+      nombre: user.rows[0].nombre,
+      apellidos: user.rows[0].apellidos,
     });
   } catch (error) {
     console.error("❌ Error en login:", error);

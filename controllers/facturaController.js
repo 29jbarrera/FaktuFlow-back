@@ -316,6 +316,101 @@ const deleteArchivoFactura = async (req, res) => {
   }
 };
 
+const getResumenFacturasPorYear = async (req, res) => {
+  const usuario_id = req.user.id;
+  const year = parseInt(req.query.year);
+
+  if (!year || isNaN(year)) {
+    return res.status(400).json({ message: "Año inválido" });
+  }
+
+  try {
+    // Resumen general con promedios
+    const resumenQuery = await pool.query(
+      `
+      SELECT
+        COUNT(*) AS total_facturas,
+        COUNT(*) FILTER (WHERE estado = true) AS pagadas,
+        COUNT(*) FILTER (WHERE estado = false) AS no_pagadas,
+        COALESCE(SUM(importe), 0) AS total_importe,
+        COALESCE(SUM(importe) FILTER (WHERE estado = true), 0) AS importe_pagadas,
+        COALESCE(SUM(importe) FILTER (WHERE estado = false), 0) AS importe_no_pagadas,
+        ROUND(AVG(importe)::numeric, 2) AS promedio_importe,
+        ROUND(AVG(importe) FILTER (WHERE estado = true)::numeric, 2) AS promedio_pagadas,
+        ROUND(AVG(importe) FILTER (WHERE estado = false)::numeric, 2) AS promedio_no_pagadas
+      FROM facturas
+      WHERE usuario_id = $1 AND EXTRACT(YEAR FROM fecha_emision) = $2
+      `,
+      [usuario_id, year]
+    );
+
+    const resumen = resumenQuery.rows[0];
+
+    // Agrupación mensual
+    const mensualQuery = await pool.query(
+      `
+      SELECT 
+        TO_CHAR(fecha_emision, 'MM') AS mes,
+        COUNT(*) AS total,
+        COUNT(*) FILTER (WHERE estado = true) AS pagadas,
+        COUNT(*) FILTER (WHERE estado = false) AS no_pagadas,
+        COALESCE(SUM(importe), 0) AS total_importe
+      FROM facturas
+      WHERE usuario_id = $1 AND EXTRACT(YEAR FROM fecha_emision) = $2
+      GROUP BY mes
+      ORDER BY mes
+      `,
+      [usuario_id, year]
+    );
+
+    // Normalizamos nombres de mes
+    const meses = [
+      "01",
+      "02",
+      "03",
+      "04",
+      "05",
+      "06",
+      "07",
+      "08",
+      "09",
+      "10",
+      "11",
+      "12",
+    ];
+
+    const agrupadoMensual = meses.map((mes) => {
+      const found = mensualQuery.rows.find((row) => row.mes === mes);
+      return {
+        mes,
+        total: found ? parseInt(found.total) : 0,
+        pagadas: found ? parseInt(found.pagadas) : 0,
+        noPagadas: found ? parseInt(found.no_pagadas) : 0,
+        totalImporte: found ? parseFloat(found.total_importe) : 0,
+      };
+    });
+
+    res.json({
+      year,
+      resumen: {
+        totalFacturas: parseInt(resumen.total_facturas),
+        pagadas: parseInt(resumen.pagadas),
+        noPagadas: parseInt(resumen.no_pagadas),
+        totalImporte: parseFloat(resumen.total_importe),
+        importePagadas: parseFloat(resumen.importe_pagadas),
+        importeNoPagadas: parseFloat(resumen.importe_no_pagadas),
+        promedioImporte: parseFloat(resumen.promedio_importe || 0),
+        promedioPagadas: parseFloat(resumen.promedio_pagadas || 0),
+        promedioNoPagadas: parseFloat(resumen.promedio_no_pagadas || 0),
+      },
+      mensual: agrupadoMensual,
+    });
+  } catch (error) {
+    console.error("❌ Error al obtener resumen completo de facturas:", error);
+    res.status(500).json({ message: "Error en el servidor" });
+  }
+};
+
 module.exports = {
   createFactura,
   getFacturasByUser,
@@ -323,4 +418,5 @@ module.exports = {
   updateFactura,
   deleteFactura,
   deleteArchivoFactura,
+  getResumenFacturasPorYear,
 };
