@@ -5,6 +5,7 @@ const {
   getGastos,
   updateGasto,
   deleteGasto,
+  getResumenGastos,
 } = require("../controllers/gastoController");
 const { body, param, validationResult } = require("express-validator");
 
@@ -51,6 +52,8 @@ router.post(
 );
 
 router.get("/", verifyToken, getGastos);
+
+router.get("/resumen", verifyToken, getResumenGastos);
 
 router.put(
   "/:id",

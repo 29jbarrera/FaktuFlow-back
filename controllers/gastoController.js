@@ -156,4 +156,88 @@ const deleteGasto = async (req, res) => {
   }
 };
 
-module.exports = { createGasto, getGastos, updateGasto, deleteGasto };
+const getResumenGastos = async (req, res) => {
+  const usuario_id = req.user.id;
+  const year = parseInt(req.query.year);
+
+  if (!year || isNaN(year)) {
+    return res.status(400).json({ message: "Año inválido" });
+  }
+
+  try {
+    // 1. Resumen general
+    const resumenQuery = await pool.query(
+      `
+      SELECT
+        COUNT(*) AS total_gastos,
+        COALESCE(SUM(importe_total), 0) AS total_importe,
+        ROUND(AVG(importe_total)::numeric, 2) AS promedio_importe
+      FROM gastos
+      WHERE usuario_id = $1 AND EXTRACT(YEAR FROM fecha) = $2
+      `,
+      [usuario_id, year]
+    );
+    const resumen = resumenQuery.rows[0];
+
+    // 2. Agrupación mensual
+    const mensualQuery = await pool.query(
+      `
+      SELECT 
+        TO_CHAR(fecha, 'MM') AS mes,
+        COUNT(*) AS total,
+        COALESCE(SUM(importe_total), 0) AS total_importe
+      FROM gastos
+      WHERE usuario_id = $1 AND EXTRACT(YEAR FROM fecha) = $2
+      GROUP BY mes
+      ORDER BY mes
+      `,
+      [usuario_id, year]
+    );
+
+    // 3. Normalización de meses
+    const meses = [
+      "01",
+      "02",
+      "03",
+      "04",
+      "05",
+      "06",
+      "07",
+      "08",
+      "09",
+      "10",
+      "11",
+      "12",
+    ];
+
+    const agrupadoMensual = meses.map((mes) => {
+      const found = mensualQuery.rows.find((row) => row.mes === mes);
+      return {
+        mes,
+        total: found ? parseInt(found.total) : 0,
+        totalImporte: found ? parseFloat(found.total_importe) : 0,
+      };
+    });
+
+    res.json({
+      year,
+      resumen: {
+        totalGastos: parseInt(resumen.total_gastos),
+        totalImporte: parseFloat(resumen.total_importe),
+        promedioImporte: parseFloat(resumen.promedio_importe || 0),
+      },
+      mensual: agrupadoMensual,
+    });
+  } catch (error) {
+    console.error("❌ Error al obtener resumen completo de gastos:", error);
+    res.status(500).json({ message: "Error en el servidor" });
+  }
+};
+
+module.exports = {
+  createGasto,
+  getGastos,
+  updateGasto,
+  deleteGasto,
+  getResumenGastos,
+};
