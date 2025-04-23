@@ -179,10 +179,29 @@ const updateCliente = async (req, res) => {
   }
 };
 
+const getTotalClientesByUser = async (req, res) => {
+  const usuario_id = req.user.id;
+
+  try {
+    const result = await pool.query(
+      "SELECT COUNT(*) FROM clientes WHERE usuario_id = $1",
+      [usuario_id]
+    );
+
+    res.status(200).json({
+      totalClientes: parseInt(result.rows[0].count),
+    });
+  } catch (error) {
+    console.error("❌ Error al obtener el total de clientes:", error);
+    res.status(500).json({ message: "Error al obtener el total de clientes." });
+  }
+};
+
 module.exports = {
   createCliente,
   getClientesByUser,
   deleteCliente,
   updateCliente,
   getClientesByUserTable,
+  getTotalClientesByUser,
 };
