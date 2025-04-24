@@ -129,4 +129,43 @@ const changePassword = async (req, res) => {
   }
 };
 
-module.exports = { register, login, changePassword };
+const updateUserInfo = async (req, res) => {
+  const { usuario_id, nombre, apellidos, email } = req.body;
+
+  if (!usuario_id || !nombre || !apellidos || !email) {
+    return res.status(400).json({ message: "Faltan campos obligatorios." });
+  }
+
+  try {
+    // Validar si el nuevo email ya está en uso por otro usuario
+    const emailCheck = await pool.query(
+      "SELECT id FROM usuarios WHERE email = $1 AND id <> $2",
+      [email, usuario_id]
+    );
+
+    if (emailCheck.rows.length > 0) {
+      return res
+        .status(400)
+        .json({ message: "El correo ya está siendo usado por otro usuario." });
+    }
+
+    // Actualizar datos del usuario
+    const updateQuery = await pool.query(
+      `UPDATE usuarios 
+       SET nombre = $1, apellidos = $2, email = $3 
+       WHERE id = $4 
+       RETURNING id, nombre, apellidos, email`,
+      [nombre, apellidos, email, usuario_id]
+    );
+
+    res.status(200).json({
+      message: "Información actualizada con éxito.",
+      user: updateQuery.rows[0],
+    });
+  } catch (error) {
+    console.error("❌ Error al actualizar datos personales:", error);
+    res.status(500).json({ message: "Error en el servidor." });
+  }
+};
+
+module.exports = { register, login, changePassword, updateUserInfo };

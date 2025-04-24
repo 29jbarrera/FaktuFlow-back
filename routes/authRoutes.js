@@ -4,6 +4,7 @@ const {
   register,
   login,
   changePassword,
+  updateUserInfo,
 } = require("../controllers/authController");
 const { body, validationResult } = require("express-validator");
 const router = express.Router();
@@ -63,6 +64,31 @@ router.post(
     }
 
     changePassword(req, res);
+  }
+);
+
+router.put(
+  "/update-info",
+  verifyToken,
+  [
+    body("usuario_id")
+      .notEmpty()
+      .withMessage("El ID de usuario es obligatorio."),
+    body("nombre").notEmpty().withMessage("El nombre es obligatorio."),
+    body("apellidos").notEmpty().withMessage("Los apellidos son obligatorios."),
+    body("email")
+      .notEmpty()
+      .withMessage("El email es obligatorio.")
+      .isEmail()
+      .withMessage("El formato del email no es válido."),
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    updateUserInfo(req, res);
   }
 );
 
