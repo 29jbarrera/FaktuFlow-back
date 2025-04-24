@@ -4,7 +4,7 @@ const bcrypt = require("bcryptjs");
 const getAllUsers = async (req, res) => {
   try {
     const users = await pool.query(
-      "SELECT id, nombre, apellidos, email, rol FROM usuarios"
+      "SELECT id, nombre, apellidos, email, rol, fecha_registro FROM usuarios"
     );
     res.json(users.rows);
   } catch (error) {
@@ -22,7 +22,7 @@ const getUserById = async (req, res) => {
     }
 
     const user = await pool.query(
-      "SELECT id, nombre, apellidos, email, rol FROM usuarios WHERE id = $1",
+      "SELECT id, nombre, apellidos, email, rol, fecha_registro  FROM usuarios WHERE id = $1",
       [id]
     );
 

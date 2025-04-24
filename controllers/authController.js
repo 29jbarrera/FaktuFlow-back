@@ -16,10 +16,18 @@ const register = async (req, res) => {
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
+    const fecha_registro = new Date();
 
     const newUser = await pool.query(
-      "INSERT INTO usuarios (nombre, apellidos, email, password, rol) VALUES ($1, $2, $3, $4, $5) RETURNING id, nombre, apellidos, email, rol",
-      [nombre, apellidos, email, hashedPassword, rol || "autonomo"]
+      "INSERT INTO usuarios (nombre, apellidos, email, password, rol, fecha_registro) VALUES ($1, $2, $3, $4, $5) RETURNING id, nombre, apellidos, email, rol, fecha_registro",
+      [
+        nombre,
+        apellidos,
+        email,
+        hashedPassword,
+        rol || "autonomo",
+        fecha_registro,
+      ]
     );
 
     res
@@ -73,4 +81,52 @@ const login = async (req, res) => {
   }
 };
 
-module.exports = { register, login };
+const changePassword = async (req, res) => {
+  const { usuario_id, currentPassword, newPassword } = req.body;
+
+  if (!usuario_id || !currentPassword || !newPassword) {
+    return res.status(400).json({ message: "Faltan campos obligatorios." });
+  }
+
+  try {
+    // Obtener el usuario
+    const userQuery = await pool.query("SELECT * FROM usuarios WHERE id = $1", [
+      usuario_id,
+    ]);
+    const user = userQuery.rows[0];
+
+    if (!user) {
+      return res.status(404).json({ message: "Usuario no encontrado." });
+    }
+
+    // Validar contraseña actual
+    const validPassword = await bcrypt.compare(currentPassword, user.password);
+    if (!validPassword) {
+      return res.status(401).json({ message: "Contraseña actual incorrecta." });
+    }
+
+    // Verificar que la nueva contraseña sea diferente a la actual
+    if (currentPassword === newPassword) {
+      return res.status(400).json({
+        message: "La nueva contraseña no puede ser igual a la actual.",
+      });
+    }
+
+    // Encriptar nueva contraseña
+    const salt = await bcrypt.genSalt(10);
+    const hashedNewPassword = await bcrypt.hash(newPassword, salt);
+
+    // Actualizar contraseña
+    await pool.query("UPDATE usuarios SET password = $1 WHERE id = $2", [
+      hashedNewPassword,
+      usuario_id,
+    ]);
+
+    res.status(200).json({ message: "Contraseña actualizada con éxito." });
+  } catch (error) {
+    console.error("❌ Error al cambiar contraseña:", error);
+    res.status(500).json({ message: "Error en el servidor." });
+  }
+};
+
+module.exports = { register, login, changePassword };
