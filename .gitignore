@@ -10,3 +10,7 @@ Thumbs.db
 
 # Ignorar archivos de entorno
 .env
+
+package-lock.json
+
+package.json

@@ -5,6 +5,8 @@ const {
   login,
   changePassword,
   updateUserInfo,
+  verifyCode,
+  resendVerificationCode,
 } = require("../controllers/authController");
 const { body, validationResult } = require("express-validator");
 const router = express.Router();
@@ -66,6 +68,10 @@ router.post(
     changePassword(req, res);
   }
 );
+
+router.post("/verify-code", verifyCode);
+
+router.post("/resend-verification", resendVerificationCode);
 
 router.put(
   "/update-info",
