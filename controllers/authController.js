@@ -271,7 +271,7 @@ const resendVerificationCode = async (req, res) => {
     if (currentTime < verificationCodeExpiry) {
       return res.status(400).json({
         message:
-          "Aún no ha expirado el código de verificación. Intente más tarde.",
+          "Aún no ha expirado el código de verificación. Intentelo de nuevo más tarde.",
       });
     }
 

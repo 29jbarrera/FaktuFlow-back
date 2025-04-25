@@ -71,7 +71,7 @@ router.post(
 
 router.post("/verify-code", verifyCode);
 
-router.post("/resend-verification", resendVerificationCode);
+router.post("/resend-code", resendVerificationCode);
 
 router.put(
   "/update-info",
