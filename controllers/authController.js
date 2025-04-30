@@ -44,10 +44,17 @@ const register = async (req, res) => {
       console.log("Resultado envío correo:", emailSent);
 
       if (!emailSent || emailSent.error) {
-        return res
-          .status(500)
-          .json({ message: "Error al enviar el correo de verificación." });
+        return res.status(500).json({
+          message: "Error al enviar el correo de verificación.",
+        });
       }
+
+      // ✅ IMPORTANTE: enviar respuesta al frontend
+      return res.status(201).json({
+        message:
+          "Usuario registrado correctamente. Revisa tu correo para verificar tu cuenta.",
+        user: newUser.rows[0],
+      });
     } catch (err) {
       console.error("❌ Error al enviar correo:", err);
       return res.status(500).json({ message: "Fallo al enviar el correo." });

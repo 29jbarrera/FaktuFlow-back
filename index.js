@@ -16,6 +16,7 @@ const path = require("path");
 
 app.use(express.json());
 app.use(cors());
+app.use("/static", express.static(path.join(__dirname, "assets")));
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 app.get("/test", async (req, res) => {
