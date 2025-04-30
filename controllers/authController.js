@@ -39,21 +39,22 @@ const register = async (req, res) => {
     );
 
     // Enviar el correo de verificación
-    const emailSent = await sendVerificationEmail(email, verificationCode);
-    if (!emailSent) {
-      return res
-        .status(500)
-        .json({ message: "Error al enviar el correo de verificación." });
-    }
+    try {
+      const emailSent = await sendVerificationEmail(email, verificationCode);
+      console.log("Resultado envío correo:", emailSent);
 
-    res.status(201).json({
-      message:
-        "Usuario registrado con éxito. Revisa tu correo para verificar tu cuenta.",
-      user: newUser.rows[0],
-    });
+      if (!emailSent || emailSent.error) {
+        return res
+          .status(500)
+          .json({ message: "Error al enviar el correo de verificación." });
+      }
+    } catch (err) {
+      console.error("❌ Error al enviar correo:", err);
+      return res.status(500).json({ message: "Fallo al enviar el correo." });
+    }
   } catch (error) {
     console.error("❌ Error en registro:", error);
-    res.status(500).json({ message: "Error en el servidor" });
+    res.status(500).json({ message: "Error en el servidor." });
   }
 };
 

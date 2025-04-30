@@ -86,4 +86,23 @@ const getUsersWithStats = async (req, res) => {
   }
 };
 
-module.exports = { getAdminDashboardStats, getUsersWithStats };
+const getTotalUsuarios = async (req, res) => {
+  try {
+    // Obtener el total de usuarios
+    const result = await pool.query(
+      "SELECT COUNT(*) AS totalUsuarios FROM usuarios"
+    );
+    const totalUsuarios = result.rows[0].totalusuarios; // El nombre puede variar según tu consulta
+
+    res.status(200).json({ totalUsuarios });
+  } catch (error) {
+    console.error("Error al obtener total de usuarios:", error);
+    res.status(500).json({ message: "Error en el servidor" });
+  }
+};
+
+module.exports = {
+  getAdminDashboardStats,
+  getUsersWithStats,
+  getTotalUsuarios,
+};
