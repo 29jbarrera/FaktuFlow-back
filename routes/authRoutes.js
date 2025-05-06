@@ -7,6 +7,7 @@ const {
   updateUserInfo,
   verifyCode,
   resendVerificationCode,
+  deleteUser,
 } = require("../controllers/authController");
 const { body, validationResult } = require("express-validator");
 const router = express.Router();
@@ -95,6 +96,23 @@ router.put(
     }
 
     updateUserInfo(req, res);
+  }
+);
+
+router.delete(
+  "/delete-user",
+  verifyToken,
+  [
+    body("usuario_id")
+      .notEmpty()
+      .withMessage("El ID de usuario es obligatorio."),
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+    deleteUser(req, res);
   }
 );
 

@@ -41,8 +41,6 @@ const register = async (req, res) => {
     // Enviar el correo de verificación
     try {
       const emailSent = await sendVerificationEmail(email, verificationCode);
-      console.log("Resultado envío correo:", emailSent);
-
       if (!emailSent || emailSent.error) {
         return res.status(500).json({
           message: "Error al enviar el correo de verificación.",
@@ -245,7 +243,9 @@ const verifyCode = async (req, res) => {
     ]);
 
     // Responder con éxito
-    res.status(200).json({ message: "Cuenta verificada con éxito" });
+    res
+      .status(200)
+      .json({ message: "Cuenta verificada con éxito. Puedes iniciar sesión." });
   } catch (error) {
     console.error("❌ Error en la verificación del código:", error);
     res.status(500).json({ message: "Error en el servidor" });
@@ -313,6 +313,45 @@ const resendVerificationCode = async (req, res) => {
   }
 };
 
+const deleteUser = async (req, res) => {
+  const { usuario_id } = req.body;
+
+  if (!usuario_id) {
+    return res.status(400).json({ message: "Falta el ID del usuario." });
+  }
+
+  try {
+    // 1. Eliminar todas las facturas asociadas al usuario
+    await pool.query("DELETE FROM facturas WHERE usuario_id = $1", [
+      usuario_id,
+    ]);
+
+    // 2. Eliminar todos los gastos asociados al usuario
+    await pool.query("DELETE FROM gastos WHERE usuario_id = $1", [usuario_id]);
+
+    // 3. Eliminar todos los ingresos asociados al usuario
+    await pool.query("DELETE FROM ingresos WHERE usuario_id = $1", [
+      usuario_id,
+    ]);
+
+    // 4. Eliminar todos los clientes asociados al usuario
+    await pool.query("DELETE FROM clientes WHERE usuario_id = $1", [
+      usuario_id,
+    ]);
+
+    // 5. Finalmente, eliminar al usuario de la tabla `usuarios`
+    await pool.query("DELETE FROM usuarios WHERE id = $1", [usuario_id]);
+
+    // Responder con éxito
+    res
+      .status(200)
+      .json({ message: "Usuario y todos sus datos eliminados correctamente." });
+  } catch (error) {
+    console.error("❌ Error al eliminar el usuario:", error);
+    res.status(500).json({ message: "Error al eliminar el usuario." });
+  }
+};
+
 module.exports = {
   register,
   login,
@@ -320,4 +359,5 @@ module.exports = {
   updateUserInfo,
   verifyCode,
   resendVerificationCode,
+  deleteUser,
 };
