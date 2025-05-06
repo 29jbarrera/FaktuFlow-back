@@ -7,23 +7,23 @@ const sendVerificationEmail = async (to, verificationCode) => {
     const response = await resend.emails.send({
       from: "onboarding@resend.dev", // O tu dominio verificado
       to,
-      subject: "Tu código de verificación - FaktuFlow",
+      subject: "FaktuFlow - Tu código de verificación",
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 20px; border-radius: 8px;">
           <div style="text-align: center;">
             <img src="http://localhost:3000/static/FaktuFlow.webp" alt="FaktuFlow Logo" style="width: 150px; margin-bottom: 20px;" />
           </div>
     
-          <h2 style="color: #2C3E50; text-align: center;">¡Verifica tu cuenta!</h2>
+          <h2 style="color: #112c35; text-align: center;">¡Verifica tu cuenta!</h2>
           <p style="font-size: 16px; color: #333;">
-            Gracias por registrarte en <strong>FaktuFlow</strong>, tu solución integral para la gestión de facturas, gastos e ingresos.
+            Gracias por registrarte en <span style="font-weight: bold; color: #112c35">FaktuFlow</span>, tu solución integral para la gestión de facturas, gastos e ingresos.
           </p>
     
           <p style="font-size: 16px; color: #333;">
             Tu código de verificación es:
           </p>
     
-          <div style="background-color: #f2f2f2; padding: 15px; border-radius: 6px; text-align: center; font-size: 24px; font-weight: bold; color: #007BFF; letter-spacing: 4px;">
+          <div style="background-color: #f2f2f2; padding: 15px; border-radius: 6px; text-align: center; font-size: 24px; font-weight: bold; color: #4ce1b9; letter-spacing: 4px;">
             ${verificationCode}
           </div>
     
@@ -35,7 +35,7 @@ const sendVerificationEmail = async (to, verificationCode) => {
     
           <p style="font-size: 12px; color: #999; text-align: center;">
             © ${new Date().getFullYear()} FaktuFlow · Todos los derechos reservados<br/>
-            ¿Necesitas ayuda? Escríbenos a <a href="mailto:soporte@faktuflow.com">soporte@faktuflow.com</a>
+            ¿Necesitas ayuda? Escríbenos a <a href="mailto:soporte@faktuflow.com" style="color: #4ce1b9;">soporte@faktuflow.com</a>
           </p>
         </div>
       `,
