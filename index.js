@@ -24,7 +24,6 @@ app.get("/test", async (req, res) => {
     const result = await pool.query("SELECT NOW()");
     res.json({ message: "Conexión exitosa", time: result.rows[0] });
   } catch (error) {
-    console.error("❌ Error ejecutando la consulta", error);
     res.status(500).send("Error en la base de datos");
   }
 });

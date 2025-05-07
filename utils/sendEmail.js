@@ -1,11 +1,10 @@
-// utils/sendEmail.js
 const { Resend } = require("resend");
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 const sendVerificationEmail = async (to, verificationCode) => {
   try {
     const response = await resend.emails.send({
-      from: "onboarding@resend.dev", // O tu dominio verificado
+      from: "onboarding@resend.dev",
       to,
       subject: "FaktuFlow - Tu código de verificación",
       html: `
