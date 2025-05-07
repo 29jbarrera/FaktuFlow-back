@@ -1,7 +1,10 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const pool = require("../db");
+const axios = require("axios");
 const { sendVerificationEmail } = require("../utils/sendEmail");
+require("dotenv").config();
+const recaptchaSecretKey = process.env.RECAPTCHA_SECRET_KEY;
 
 const register = async (req, res) => {
   const { nombre, apellidos, email, password, rol } = req.body;
@@ -64,9 +67,34 @@ const register = async (req, res) => {
 };
 
 const login = async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, recaptchaResponse } = req.body;
+
+  if (!recaptchaResponse) {
+    return res
+      .status(400)
+      .json({ message: "Por favor, verifica que no eres un robot" });
+  }
 
   try {
+    // Verificar la respuesta de reCAPTCHA con Google
+    const recaptchaVerificationResponse = await axios.post(
+      `https://www.google.com/recaptcha/api/siteverify`,
+      null,
+      {
+        params: {
+          secret: recaptchaSecretKey,
+          response: recaptchaResponse,
+        },
+      }
+    );
+
+    // Si la validación de reCAPTCHA falla
+    if (!recaptchaVerificationResponse.data.success) {
+      return res.status(400).json({
+        message: "reCAPTCHA inválido. Por favor, intenta nuevamente.",
+      });
+    }
+
     const user = await pool.query("SELECT * FROM usuarios WHERE email = $1", [
       email,
     ]);
@@ -107,7 +135,6 @@ const login = async (req, res) => {
       apellidos: user.rows[0].apellidos,
     });
   } catch (error) {
-    console.error("❌ Error en login:", error);
     res.status(500).json({ message: "Error en el servidor" });
   }
 };
