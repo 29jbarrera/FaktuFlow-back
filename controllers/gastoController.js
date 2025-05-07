@@ -30,7 +30,6 @@ const createGasto = async (req, res) => {
       .status(201)
       .json({ message: "Gasto registrado con éxito", gasto: newGasto.rows[0] });
   } catch (error) {
-    console.error("❌ Error al registrar gasto:", error);
     res.status(500).json({ message: "Error en el servidor" });
   }
 };
@@ -46,7 +45,6 @@ const getGastos = async (req, res) => {
 
   const search = req.query.search?.toLowerCase()?.trim() || "";
 
-  // Campos válidos para ordenar (según tu base de datos)
   const allowedFields = ["nombre_gasto", "categoria", "fecha", "importe_total"];
   if (!allowedFields.includes(sortField)) {
     return res.status(400).json({ message: "Campo de ordenación no válido." });
@@ -92,7 +90,6 @@ const getGastos = async (req, res) => {
       total: totalCount,
     });
   } catch (error) {
-    console.error("❌ Error al obtener los gastos paginados:", error);
     res.status(500).json({ message: "Error al obtener los gastos." });
   }
 };
@@ -127,7 +124,6 @@ const updateGasto = async (req, res) => {
       gasto: updatedGasto.rows[0],
     });
   } catch (error) {
-    console.error("❌ Error al actualizar gasto:", error);
     res.status(500).json({ message: "Error en el servidor" });
   }
 };
@@ -151,7 +147,6 @@ const deleteGasto = async (req, res) => {
 
     res.json({ message: "Gasto eliminado con éxito" });
   } catch (error) {
-    console.error("❌ Error al eliminar gasto:", error);
     res.status(500).json({ message: "Error en el servidor" });
   }
 };
@@ -165,7 +160,6 @@ const getResumenGastos = async (req, res) => {
   }
 
   try {
-    // 1. Resumen general
     const resumenQuery = await pool.query(
       `
       SELECT
@@ -179,7 +173,6 @@ const getResumenGastos = async (req, res) => {
     );
     const resumen = resumenQuery.rows[0];
 
-    // 2. Agrupación mensual
     const mensualQuery = await pool.query(
       `
       SELECT 
@@ -194,7 +187,6 @@ const getResumenGastos = async (req, res) => {
       [usuario_id, year]
     );
 
-    // 3. Normalización de meses
     const meses = [
       "01",
       "02",
@@ -229,7 +221,6 @@ const getResumenGastos = async (req, res) => {
       mensual: agrupadoMensual,
     });
   } catch (error) {
-    console.error("❌ Error al obtener resumen completo de gastos:", error);
     res.status(500).json({ message: "Error en el servidor" });
   }
 };

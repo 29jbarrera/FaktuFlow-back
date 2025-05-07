@@ -8,7 +8,6 @@ const getAllUsers = async (req, res) => {
     );
     res.json(users.rows);
   } catch (error) {
-    console.error("❌ Error obteniendo usuarios:", error);
     res.status(500).json({ message: "Error en el servidor" });
   }
 };
@@ -32,7 +31,6 @@ const getUserById = async (req, res) => {
 
     res.json(user.rows[0]);
   } catch (error) {
-    console.error("❌ Error obteniendo usuario:", error);
     res.status(500).json({ message: "Error en el servidor" });
   }
 };
@@ -74,7 +72,6 @@ const updateUser = async (req, res) => {
       user: updatedUser.rows[0],
     });
   } catch (error) {
-    console.error("❌ Error actualizando usuario:", error);
     res.status(500).json({ message: "Error en el servidor" });
   }
 };
@@ -94,7 +91,6 @@ const deleteUser = async (req, res) => {
 
     res.json({ message: "Usuario eliminado con éxito" });
   } catch (error) {
-    console.error("❌ Error eliminando usuario:", error);
     res.status(500).json({ message: "Error en el servidor" });
   }
 };

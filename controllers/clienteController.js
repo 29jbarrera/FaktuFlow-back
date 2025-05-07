@@ -39,7 +39,6 @@ const createCliente = async (req, res) => {
       cliente: newCliente.rows[0],
     });
   } catch (error) {
-    console.error("❌ Error al crear cliente:", error);
     res.status(500).json({ message: "Error en el servidor" });
   }
 };
@@ -57,7 +56,6 @@ const getClientesByUser = async (req, res) => {
       clientes: result.rows,
     });
   } catch (error) {
-    console.error("❌ Error al obtener clientes:", error);
     res.status(500).json({ message: "Error al obtener los clientes." });
   }
 };
@@ -111,7 +109,6 @@ const getClientesByUserTable = async (req, res) => {
       total: totalCount,
     });
   } catch (error) {
-    console.error("❌ Error al obtener los clientes paginados:", error);
     res.status(500).json({ message: "Error al obtener los clientes." });
   }
 };
@@ -136,7 +133,6 @@ const deleteCliente = async (req, res) => {
 
     res.json({ message: "Cliente eliminado con éxito" });
   } catch (error) {
-    console.error("❌ Error al eliminar cliente:", error);
     res.status(500).json({ message: "Error en el servidor" });
   }
 };
@@ -174,7 +170,6 @@ const updateCliente = async (req, res) => {
       cliente: updatedCliente.rows[0],
     });
   } catch (error) {
-    console.error("❌ Error al actualizar cliente:", error);
     res.status(500).json({ message: "Error en el servidor" });
   }
 };
@@ -192,7 +187,6 @@ const getTotalClientesByUser = async (req, res) => {
       totalClientes: parseInt(result.rows[0].count),
     });
   } catch (error) {
-    console.error("❌ Error al obtener el total de clientes:", error);
     res.status(500).json({ message: "Error al obtener el total de clientes." });
   }
 };

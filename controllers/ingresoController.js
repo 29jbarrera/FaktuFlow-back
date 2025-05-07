@@ -36,7 +36,6 @@ const createIngreso = async (req, res) => {
       ingreso: newIngreso.rows[0],
     });
   } catch (error) {
-    console.error("❌ Error al registrar ingreso:", error);
     res.status(500).json({ message: "Error en el servidor" });
   }
 };
@@ -102,7 +101,6 @@ const getIngresos = async (req, res) => {
       total: totalCount,
     });
   } catch (error) {
-    console.error("❌ Error al obtener los ingresos paginados:", error);
     res.status(500).json({ message: "Error al obtener los ingresos." });
   }
 };
@@ -157,7 +155,6 @@ const updateIngreso = async (req, res) => {
       ingreso: updatedIngreso.rows[0],
     });
   } catch (error) {
-    console.error("❌ Error al actualizar ingreso:", error);
     res.status(500).json({ message: "Error en el servidor" });
   }
 };
@@ -180,7 +177,6 @@ const deleteIngreso = async (req, res) => {
     await pool.query("DELETE FROM ingresos WHERE id = $1", [id]);
     res.status(200).json({ message: "Ingreso eliminado con éxito" });
   } catch (error) {
-    console.error("❌ Error al eliminar ingreso:", error);
     res.status(500).json({ message: "Error en el servidor" });
   }
 };
@@ -194,7 +190,6 @@ const getResumenIngresos = async (req, res) => {
   }
 
   try {
-    // Obtener resumen general
     const resumenQuery = await pool.query(
       `SELECT 
         COUNT(*) AS total_ingresos,
@@ -207,7 +202,6 @@ const getResumenIngresos = async (req, res) => {
 
     const resumen = resumenQuery.rows[0];
 
-    // Agrupado mensual
     const mensualQuery = await pool.query(
       `SELECT 
         TO_CHAR(fecha_ingreso, 'MM') AS mes,
@@ -220,7 +214,6 @@ const getResumenIngresos = async (req, res) => {
       [usuario_id, year]
     );
 
-    // Armar todos los meses (Enero - Diciembre)
     const meses = [
       "01",
       "02",
@@ -255,7 +248,6 @@ const getResumenIngresos = async (req, res) => {
       mensual: agrupadoMensual,
     });
   } catch (error) {
-    console.error("❌ Error al obtener resumen de ingresos:", error);
     res.status(500).json({ message: "Error en el servidor" });
   }
 };

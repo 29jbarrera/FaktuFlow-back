@@ -37,9 +37,6 @@ const createFactura = async (req, res) => {
       factura: newFactura.rows[0],
     });
   } catch (error) {
-    console.error("❌ Error al crear factura:", error);
-
-    // Detectar violación de restricción UNIQUE en PostgreSQL
     if (error.code === "23505" && error.constraint === "facturas_numero_key") {
       return res.status(400).json({
         message: "Ya existe una factura con ese número.",
@@ -91,7 +88,6 @@ const getFacturasByUser = async (req, res) => {
 
     const result = await pool.query(paginatedQuery, paginatedParams);
 
-    // total de todas las facturas del usuario, sin filtro
     const totalCountResult = await pool.query(
       `SELECT COUNT(*) FROM facturas WHERE usuario_id = $1`,
       [usuarioId]
@@ -110,7 +106,6 @@ const getFacturasByUser = async (req, res) => {
       total: totalCount,
     });
   } catch (error) {
-    console.error("❌ Error al obtener las facturas:", error);
     res.status(500).json({ message: "Error al obtener las facturas." });
   }
 };
@@ -131,7 +126,6 @@ const getFacturaById = async (req, res) => {
 
     res.json({ factura: factura.rows[0] });
   } catch (error) {
-    console.error("❌ Error al obtener factura:", error);
     res.status(500).json({ message: "Error en el servidor" });
   }
 };
@@ -139,12 +133,10 @@ const getFacturaById = async (req, res) => {
 const updateFactura = async (req, res) => {
   const usuario_id = req.user.id;
   const { id } = req.params;
-  // Extraemos del body los campos que se pueden actualizar
   const { cliente_id, fecha_emision, importe, estado, numero, descripcion } =
     req.body;
 
   try {
-    // Primero obtenemos la factura para validar que existe y obtener el archivo actual
     const facturaResult = await pool.query(
       `SELECT * FROM facturas WHERE id = $1 AND usuario_id = $2`,
       [id, usuario_id]
@@ -154,13 +146,9 @@ const updateFactura = async (req, res) => {
       return res.status(404).json({ message: "Factura no encontrada" });
     }
 
-    // Determinamos el nombre actual del archivo
     let archivoActual = facturaResult.rows[0].archivo;
 
-    // Si existe un archivo en el request, lo usaremos para reemplazarlo
-    // De lo contrario, se mantiene el archivo existente
     if (req.file) {
-      // Opcionalmente, elimina el archivo antiguo del sistema de archivos (si existe)
       if (archivoActual) {
         const oldFilePath = path.join(
           __dirname,
@@ -171,15 +159,12 @@ const updateFactura = async (req, res) => {
         );
         fs.unlink(oldFilePath, (err) => {
           if (err) {
-            console.error("❌ Error al eliminar el archivo antiguo:", err);
           }
         });
       }
       archivoActual = req.file.filename;
     }
 
-    // Actualizar factura en la base de datos. Se considera que si alguno de los campos es undefined se mantiene su valor anterior.
-    // Podrías usar una consulta dinámica o actualizar todos los campos. Aquí se usa UPDATE con todos los parámetros.
     const updatedFacturaResult = await pool.query(
       `UPDATE facturas 
        SET cliente_id = $1,
@@ -211,7 +196,6 @@ const updateFactura = async (req, res) => {
       factura: updatedFacturaResult.rows[0],
     });
   } catch (error) {
-    console.error("❌ Error al actualizar factura:", error);
     res.status(500).json({ message: "Error en el servidor" });
   }
 };
@@ -243,7 +227,6 @@ const deleteFactura = async (req, res) => {
 
       fs.unlink(filePath, (err) => {
         if (err) {
-          console.error("❌ Error al eliminar el archivo:", err);
           return res
             .status(500)
             .json({ message: "Error al eliminar el archivo" });
@@ -258,7 +241,6 @@ const deleteFactura = async (req, res) => {
 
     res.json({ message: "Factura eliminada con éxito" });
   } catch (error) {
-    console.error("❌ Error al eliminar factura:", error);
     res.status(500).json({ message: "Error en el servidor" });
   }
 };
@@ -293,16 +275,13 @@ const deleteArchivoFactura = async (req, res) => {
       factura.archivo
     );
 
-    // Intentamos borrar el archivo del disco
     fs.unlink(filePath, async (err) => {
       if (err) {
-        console.error("❌ Error al eliminar archivo:", err);
         return res
           .status(500)
           .json({ message: "Error al eliminar el archivo del sistema" });
       }
 
-      // Luego actualizamos la base de datos para dejar el campo archivo en null
       await pool.query(
         `UPDATE facturas SET archivo = NULL WHERE id = $1 AND usuario_id = $2`,
         [id, usuario_id]
@@ -311,7 +290,6 @@ const deleteArchivoFactura = async (req, res) => {
       res.json({ message: "Archivo eliminado correctamente" });
     });
   } catch (error) {
-    console.error("❌ Error al eliminar el archivo de la factura:", error);
     res.status(500).json({ message: "Error en el servidor" });
   }
 };
@@ -325,7 +303,6 @@ const getResumenFacturasPorYear = async (req, res) => {
   }
 
   try {
-    // Resumen general con promedios
     const resumenQuery = await pool.query(
       `
       SELECT
@@ -346,7 +323,6 @@ const getResumenFacturasPorYear = async (req, res) => {
 
     const resumen = resumenQuery.rows[0];
 
-    // Agrupación mensual
     const mensualQuery = await pool.query(
       `
       SELECT 
@@ -363,7 +339,6 @@ const getResumenFacturasPorYear = async (req, res) => {
       [usuario_id, year]
     );
 
-    // Normalizamos nombres de mes
     const meses = [
       "01",
       "02",
@@ -406,7 +381,6 @@ const getResumenFacturasPorYear = async (req, res) => {
       mensual: agrupadoMensual,
     });
   } catch (error) {
-    console.error("❌ Error al obtener resumen completo de facturas:", error);
     res.status(500).json({ message: "Error en el servidor" });
   }
 };

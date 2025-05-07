@@ -22,7 +22,7 @@ const register = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, salt);
     const fecha_registro = new Date();
 
-    const verificationCode = Math.floor(100000 + Math.random() * 900000); // 6 dígitos
+    const verificationCode = Math.floor(100000 + Math.random() * 900000);
     const verificationCodeExpiry = new Date();
     verificationCodeExpiry.setHours(verificationCodeExpiry.getHours() + 1);
 
@@ -41,7 +41,6 @@ const register = async (req, res) => {
       ]
     );
 
-    // Enviar el correo de verificación
     try {
       const emailSent = await sendVerificationEmail(email, verificationCode);
       if (!emailSent || emailSent.error) {
@@ -50,18 +49,15 @@ const register = async (req, res) => {
         });
       }
 
-      // ✅ IMPORTANTE: enviar respuesta al frontend
       return res.status(201).json({
         message:
           "Usuario registrado correctamente. Revisa tu correo para verificar tu cuenta.",
         user: newUser.rows[0],
       });
     } catch (err) {
-      console.error("❌ Error al enviar correo:", err);
       return res.status(500).json({ message: "Fallo al enviar el correo." });
     }
   } catch (error) {
-    console.error("❌ Error en registro:", error);
     res.status(500).json({ message: "Error en el servidor." });
   }
 };
@@ -76,7 +72,6 @@ const login = async (req, res) => {
   }
 
   try {
-    // Verificar la respuesta de reCAPTCHA con Google
     const recaptchaVerificationResponse = await axios.post(
       `https://www.google.com/recaptcha/api/siteverify`,
       null,
@@ -88,7 +83,6 @@ const login = async (req, res) => {
       }
     );
 
-    // Si la validación de reCAPTCHA falla
     if (!recaptchaVerificationResponse.data.success) {
       return res.status(400).json({
         message: "reCAPTCHA inválido. Por favor, intenta nuevamente.",
@@ -102,7 +96,6 @@ const login = async (req, res) => {
       return res.status(400).json({ message: "Credenciales inválidas" });
     }
 
-    // Verificar si el usuario está verificado
     if (!user.rows[0].verificado) {
       return res.status(400).json({
         message: "Por favor verifica tu cuenta antes de iniciar sesión.",
@@ -147,7 +140,6 @@ const changePassword = async (req, res) => {
   }
 
   try {
-    // Obtener el usuario
     const userQuery = await pool.query("SELECT * FROM usuarios WHERE id = $1", [
       usuario_id,
     ]);
@@ -157,24 +149,20 @@ const changePassword = async (req, res) => {
       return res.status(404).json({ message: "Usuario no encontrado." });
     }
 
-    // Validar contraseña actual
     const validPassword = await bcrypt.compare(currentPassword, user.password);
     if (!validPassword) {
       return res.status(401).json({ message: "Contraseña actual incorrecta." });
     }
 
-    // Verificar que la nueva contraseña sea diferente a la actual
     if (currentPassword === newPassword) {
       return res.status(400).json({
         message: "La nueva contraseña no puede ser igual a la actual.",
       });
     }
 
-    // Encriptar nueva contraseña
     const salt = await bcrypt.genSalt(10);
     const hashedNewPassword = await bcrypt.hash(newPassword, salt);
 
-    // Actualizar contraseña
     await pool.query("UPDATE usuarios SET password = $1 WHERE id = $2", [
       hashedNewPassword,
       usuario_id,
@@ -182,7 +170,6 @@ const changePassword = async (req, res) => {
 
     res.status(200).json({ message: "Contraseña actualizada con éxito." });
   } catch (error) {
-    console.error("❌ Error al cambiar contraseña:", error);
     res.status(500).json({ message: "Error en el servidor." });
   }
 };
@@ -195,7 +182,6 @@ const updateUserInfo = async (req, res) => {
   }
 
   try {
-    // Validar si el nuevo email ya está en uso por otro usuario
     const emailCheck = await pool.query(
       "SELECT id FROM usuarios WHERE email = $1 AND id <> $2",
       [email, usuario_id]
@@ -207,7 +193,6 @@ const updateUserInfo = async (req, res) => {
         .json({ message: "El correo ya está siendo usado por otro usuario." });
     }
 
-    // Actualizar datos del usuario
     const updateQuery = await pool.query(
       `UPDATE usuarios 
        SET nombre = $1, apellidos = $2, email = $3 
@@ -221,17 +206,14 @@ const updateUserInfo = async (req, res) => {
       user: updateQuery.rows[0],
     });
   } catch (error) {
-    console.error("❌ Error al actualizar datos personales:", error);
     res.status(500).json({ message: "Error en el servidor." });
   }
 };
 
-// Endpoint para verificar el código de verificación
 const verifyCode = async (req, res) => {
   const { email, codigo_verificacion } = req.body;
 
   try {
-    // Verificar si el usuario existe
     const user = await pool.query("SELECT * FROM usuarios WHERE email = $1", [
       email,
     ]);
@@ -242,21 +224,18 @@ const verifyCode = async (req, res) => {
 
     const existingUser = user.rows[0];
 
-    // Verificar si el usuario ya ha sido verificado
     if (existingUser.verificado) {
       return res.status(200).json({
         message: "La cuenta ya está verificada. Puedes iniciar sesión",
       });
     }
 
-    // Verificar si el código de verificación coincide
     if (existingUser.codigo_verificacion !== codigo_verificacion) {
       return res
         .status(400)
         .json({ message: "Código de verificación incorrecto" });
     }
 
-    // Verificar si el código ha expirado
     const currentTime = new Date();
     if (new Date(existingUser.verification_code_expiry) < currentTime) {
       return res
@@ -264,17 +243,13 @@ const verifyCode = async (req, res) => {
         .json({ message: "El código de verificación ha expirado" });
     }
 
-    // Marcar al usuario como verificado
     await pool.query("UPDATE usuarios SET verificado = true WHERE email = $1", [
       email,
     ]);
-
-    // Responder con éxito
     res
       .status(200)
       .json({ message: "Cuenta verificada con éxito. Puedes iniciar sesión." });
   } catch (error) {
-    console.error("❌ Error en la verificación del código:", error);
     res.status(500).json({ message: "Error en el servidor" });
   }
 };
@@ -283,7 +258,6 @@ const resendVerificationCode = async (req, res) => {
   const { email } = req.body;
 
   try {
-    // Buscar al usuario por email
     const user = await pool.query("SELECT * FROM usuarios WHERE email = $1", [
       email,
     ]);
@@ -292,14 +266,12 @@ const resendVerificationCode = async (req, res) => {
       return res.status(400).json({ message: "El usuario no existe" });
     }
 
-    // Comprobar si el usuario ya está verificado
     if (user.rows[0].verificado) {
       return res.status(400).json({
         message: "Tu cuenta ya está verificada. Puedes iniciar sesión.",
       });
     }
 
-    // Verificar si el código ha expirado
     const currentTime = new Date();
     const verificationCodeExpiry = user.rows[0].verification_code_expiry;
 
@@ -310,20 +282,17 @@ const resendVerificationCode = async (req, res) => {
       });
     }
 
-    // Generar un nuevo código de verificación
-    const newVerificationCode = Math.floor(100000 + Math.random() * 900000); // 6 dígitos
+    const newVerificationCode = Math.floor(100000 + Math.random() * 900000);
     const newVerificationCodeExpiry = new Date();
     newVerificationCodeExpiry.setHours(
       newVerificationCodeExpiry.getHours() + 1
-    ); // Expira en 1 hora
+    );
 
-    // Actualizar el código de verificación y la expiración en la base de datos
     await pool.query(
       "UPDATE usuarios SET codigo_verificacion = $1, verification_code_expiry = $2 WHERE email = $3",
       [newVerificationCode, newVerificationCodeExpiry, email]
     );
 
-    // Enviar el nuevo código de verificación por correo
     const emailSent = await sendVerificationEmail(email, newVerificationCode);
     if (!emailSent) {
       return res
@@ -335,7 +304,6 @@ const resendVerificationCode = async (req, res) => {
       message: "Nuevo código de verificación enviado. Revisa tu correo.",
     });
   } catch (error) {
-    console.error("❌ Error al reenviar código de verificación:", error);
     res.status(500).json({ message: "Error en el servidor" });
   }
 };
@@ -348,33 +316,26 @@ const deleteUser = async (req, res) => {
   }
 
   try {
-    // 1. Eliminar todas las facturas asociadas al usuario
     await pool.query("DELETE FROM facturas WHERE usuario_id = $1", [
       usuario_id,
     ]);
 
-    // 2. Eliminar todos los gastos asociados al usuario
     await pool.query("DELETE FROM gastos WHERE usuario_id = $1", [usuario_id]);
 
-    // 3. Eliminar todos los ingresos asociados al usuario
     await pool.query("DELETE FROM ingresos WHERE usuario_id = $1", [
       usuario_id,
     ]);
 
-    // 4. Eliminar todos los clientes asociados al usuario
     await pool.query("DELETE FROM clientes WHERE usuario_id = $1", [
       usuario_id,
     ]);
 
-    // 5. Finalmente, eliminar al usuario de la tabla `usuarios`
     await pool.query("DELETE FROM usuarios WHERE id = $1", [usuario_id]);
 
-    // Responder con éxito
     res
       .status(200)
       .json({ message: "Usuario y todos sus datos eliminados correctamente." });
   } catch (error) {
-    console.error("❌ Error al eliminar el usuario:", error);
     res.status(500).json({ message: "Error al eliminar el usuario." });
   }
 };
