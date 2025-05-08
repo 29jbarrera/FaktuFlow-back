@@ -6,6 +6,25 @@ const createGasto = async (req, res) => {
   const usuario_id = req.user.id;
 
   try {
+    const user = await pool.query("SELECT rol FROM usuarios WHERE id = $1", [
+      usuario_id,
+    ]);
+
+    if (user.rows[0].rol !== "admin") {
+      const result = await pool.query(
+        "SELECT COUNT(*) FROM gastos WHERE usuario_id = $1",
+        [usuario_id]
+      );
+
+      const cantidadGastos = parseInt(result.rows[0].count, 10);
+      if (cantidadGastos >= 200) {
+        return res.status(400).json({
+          message:
+            "Has alcanzado el límite de 200 gastos por usuario. Si necesitas más capacidad, contacta al administrador.",
+        });
+      }
+    }
+
     if (!nombre_gasto || !categoria || !importe_total) {
       return res.status(400).json({
         message: "Nombre del gasto, categoría e importe total son obligatorios",

@@ -11,6 +11,24 @@ const createIngreso = async (req, res) => {
   } = req.body;
 
   try {
+    const user = await pool.query("SELECT rol FROM usuarios WHERE id = $1", [
+      usuario_id,
+    ]);
+
+    if (user.rows[0].rol !== "admin") {
+      const result = await pool.query(
+        "SELECT COUNT(*) FROM ingresos WHERE usuario_id = $1",
+        [usuario_id]
+      );
+
+      const cantidadIngresos = parseInt(result.rows[0].count, 10);
+      if (cantidadIngresos >= 3) {
+        return res.status(400).json({
+          message:
+            "Has alcanzado el límite de 300 ingresos por usuario. Si necesitas más capacidad, contacta al administrador.",
+        });
+      }
+    }
     if (!nombre_ingreso || !categoria || !importe_total) {
       return res.status(400).json({
         message: "El nombre, categoría e importe total son obligatorios",

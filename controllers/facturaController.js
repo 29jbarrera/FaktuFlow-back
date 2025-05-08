@@ -10,6 +10,23 @@ const createFactura = async (req, res) => {
   const archivo = req.file ? req.file.filename : null;
 
   try {
+    const user = await pool.query("SELECT rol FROM usuarios WHERE id = $1", [
+      usuario_id,
+    ]);
+
+    if (user.rows[0].rol !== "admin") {
+      const facturaCount = await pool.query(
+        `SELECT COUNT(*) FROM facturas WHERE usuario_id = $1`,
+        [usuario_id]
+      );
+
+      if (parseInt(facturaCount.rows[0].count) >= 250) {
+        return res.status(400).json({
+          message:
+            "Has alcanzado el límite de 250 facturas. Si necesitas más capacidad, contacta al administrador.",
+        });
+      }
+    }
     if (!fecha_emision || !importe || estado === undefined || !cliente_id) {
       return res.status(400).json({
         message: "Fecha de emisión, importe, cliente y estado son obligatorios",

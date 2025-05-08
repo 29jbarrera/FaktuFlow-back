@@ -10,6 +10,34 @@ const createCliente = async (req, res) => {
         .json({ message: "El usuario no está autenticado" });
     }
 
+    // Verificar el rol del usuario
+    const userResult = await pool.query(
+      "SELECT rol FROM usuarios WHERE id = $1",
+      [usuario_id]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ message: "Usuario no encontrado" });
+    }
+
+    const rol = userResult.rows[0].rol;
+
+    if (rol !== "admin") {
+      const clienteCountResult = await pool.query(
+        "SELECT COUNT(*) FROM clientes WHERE usuario_id = $1",
+        [usuario_id]
+      );
+
+      const clienteCount = parseInt(clienteCountResult.rows[0].count, 10);
+
+      if (clienteCount >= 80) {
+        return res.status(400).json({
+          message:
+            "Has alcanzado el límite de 80 clientes por usuario. Si necesitas más capacidad, contacta al administrador.",
+        });
+      }
+    }
+
     const emailExists = await pool.query(
       "SELECT * FROM clientes WHERE email = $1",
       [email]
