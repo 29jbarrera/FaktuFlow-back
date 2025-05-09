@@ -1,7 +1,7 @@
 require("dotenv").config();
 const { Pool } = require("pg");
 
-const isProduction = process.env.NODE_ENV === "development"; //Cambiar a production y añadir url a env (desplegado)
+const isProduction = process.env.NODE_ENV === "development";
 
 const pool = new Pool({
   connectionString: isProduction

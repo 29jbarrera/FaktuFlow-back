@@ -1,5 +1,6 @@
 const { Resend } = require("resend");
 const resend = new Resend(process.env.RESEND_API_KEY);
+require("dotenv").config();
 
 const sendVerificationEmail = async (to, verificationCode) => {
   try {
@@ -10,8 +11,8 @@ const sendVerificationEmail = async (to, verificationCode) => {
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 20px; border-radius: 8px;">
           <div style="text-align: center;">
-           <a href="https://localhost:4200/" target="_blank">
-            <img src="http://localhost:3000/static/FaktuFlow.avif" alt="FaktuFlow Logo" style="width: 150px; margin-bottom: 20px;" />
+           <a href="${process.env.FRONTEND_URL}"target="_blank">
+            <img src="${process.env.BACKEND_URL}/static/FaktuFlow.avif" alt="FaktuFlow Logo" style="width: 150px; margin-bottom: 20px;" />
             </a>
           </div>
     
@@ -50,4 +51,56 @@ const sendVerificationEmail = async (to, verificationCode) => {
   }
 };
 
-module.exports = { sendVerificationEmail };
+const sendResetPasswordEmail = async (to, resetLink) => {
+  try {
+    const response = await resend.emails.send({
+      from: "onboarding@resend.dev",
+      to,
+      subject: "FaktuFlow - Restablece tu contraseña",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 20px; border-radius: 8px;">
+          <div style="text-align: center;">
+            <a href="${process.env.FRONTEND_URL}" target="_blank">
+              <img src="${process.env.BACKEND_URL}/static/FaktuFlow.avif" alt="FaktuFlow Logo" style="width: 150px; margin-bottom: 20px;" />
+            </a>
+          </div>
+    
+          <h2 style="color: #112c35; text-align: center;">Restablece tu contraseña</h2>
+          <p style="font-size: 16px; color: #333;">
+            Hemos recibido una solicitud para restablecer la contraseña de tu cuenta en <span style="font-weight: bold; color: #4ce1b9">FaktuFlow</span>.
+          </p>
+    
+          <p style="font-size: 16px; color: #333;">
+            Para restablecer tu contraseña, haz clic en el siguiente enlace:
+          </p>
+    
+          <div style="text-align: center; margin: 30px;">
+            <a href="${resetLink}" style="padding: 12px 24px; background-color: #4ce1b9; color: white; font-size: 16px; text-decoration: none; border-radius: 6px; font-weight: bold;">Restablecer Contraseña</a>
+          </div>
+    
+          <p style="font-size: 14px; color: #666; margin-top: 20px;">
+            Si no solicitaste este cambio, verifica que tengas acceso o puedes ignorar este correo.
+          </p>
+           <p style="font-size: 12px; color: #666;">
+            *La contraseña solo puede restablecerse una vez cada 3 meses.
+          </p>
+    
+          <hr style="margin: 30px 0;" />
+    
+          <p style="font-size: 12px; color: #999; text-align: center;">
+            © ${new Date().getFullYear()} FaktuFlow · Todos los derechos reservados<br/>
+            ¿Necesitas ayuda? Escríbenos a <a href="mailto:soporte@faktuflow.com" style="color: #4ce1b9;">soporte@faktuflow.com</a>
+          </p>
+        </div>
+      `,
+    });
+
+    if (response.error) throw new Error(response.error.message);
+    return true;
+  } catch (err) {
+    console.error("❌ Error enviando email de restablecimiento:", err);
+    return false;
+  }
+};
+
+module.exports = { sendVerificationEmail, sendResetPasswordEmail };

@@ -57,7 +57,7 @@ Este es el backend del software Faktuflow que permite a los usuarios administrar
 
 ---
 
-## 6️⃣ **Estructura del Proyecto**
+## **Estructura del Proyecto**
 
 ```
 faktuflow-back/
@@ -74,7 +74,7 @@ faktuflow-back/
 
 ---
 
-## 7️⃣ **📩 Contacto**
+## **📩 Contacto**
 
 Si tienes dudas o sugerencias, contáctame en: **javierbarreralopez97@gmail.com**  
 🎉 Si quieres cambiar algo, dime y lo ajustamos. 🚀
