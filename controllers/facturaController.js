@@ -1,6 +1,7 @@
 const pool = require("../db");
 const fs = require("fs");
 const path = require("path");
+const cloudinary = require("cloudinary").v2;
 
 const createFactura = async (req, res) => {
   const { cliente_id, fecha_emision, importe, estado, numero, descripcion } =
@@ -259,38 +260,67 @@ const deleteFactura = async (req, res) => {
   const { id } = req.params;
 
   try {
-    const factura = await pool.query(
+    // 1. Buscar la factura
+    const facturaResult = await pool.query(
       `SELECT * FROM facturas WHERE id = $1 AND usuario_id = $2`,
       [id, usuario_id]
     );
 
-    if (factura.rows.length === 0) {
+    if (facturaResult.rows.length === 0) {
       return res.status(404).json({ message: "Factura no encontrada" });
     }
 
-    const archivo = factura.rows[0].archivo;
+    const { archivo_url } = facturaResult.rows[0];
 
-    if (archivo) {
-      const relativePath = archivo.replace(/^\/uploads\//, "");
-      const filePath = path.join(__dirname, "..", "uploads", relativePath);
+    // 2. Si existe archivo_url, extraer public_id y tipo
+    if (archivo_url) {
+      let match;
+      let resourceType;
 
-      try {
-        await fs.unlink(filePath);
-      } catch (err) {
+      if (archivo_url.includes("/raw/")) {
+        resourceType = "raw";
+        match = archivo_url.match(/\/raw\/upload\/(?:v\d+\/)?(.+)$/);
+      } else if (archivo_url.includes("/image/")) {
+        resourceType = "image";
+        match = archivo_url.match(/\/image\/upload\/(?:v\d+\/)?(.+)\.[^/.]+$/);
+      } else {
         return res
-          .status(500)
-          .json({ message: "Error al eliminar el archivo" });
+          .status(400)
+          .json({ message: "Tipo de archivo no soportado" });
+      }
+
+      if (!match || !match[1]) {
+        return res
+          .status(400)
+          .json({ message: "No se pudo extraer public_id" });
+      }
+
+      const public_id = match[1];
+
+      // 3. Eliminar de Cloudinary con el tipo correcto
+      const result = await cloudinary.uploader.destroy(public_id, {
+        resource_type: resourceType,
+        invalidate: true,
+      });
+
+      if (result.result === "not found") {
+        return res.status(404).json({
+          message: "Archivo no encontrado en Cloudinary",
+        });
       }
     }
 
+    // 4. Borrar la factura de la BDD
     await pool.query(`DELETE FROM facturas WHERE id = $1 AND usuario_id = $2`, [
       id,
       usuario_id,
     ]);
 
-    return res.json({ message: "Factura eliminada con éxito" });
+    res.json({ message: "Factura y archivo eliminados correctamente" });
   } catch (error) {
-    return res.status(500).json({ message: "Error en el servidor" });
+    res
+      .status(500)
+      .json({ message: "Error en el servidor", error: error.message });
   }
 };
 
@@ -310,36 +340,35 @@ const deleteArchivoFactura = async (req, res) => {
 
     const factura = facturaResult.rows[0];
 
-    if (!factura.archivo) {
+    if (!factura.archivo_url) {
       return res
         .status(400)
         .json({ message: "La factura no tiene archivo asociado" });
     }
 
-    const filePath = path.join(
-      __dirname,
-      "..",
-      "uploads",
-      String(usuario_id),
-      factura.archivo
-    );
+    const archivoUrl = factura.archivo_url;
 
-    fs.unlink(filePath, async (err) => {
-      if (err) {
-        return res
-          .status(500)
-          .json({ message: "Error al eliminar el archivo del sistema" });
+    const public_id = archivoUrl.split("/upload/")[1].split(".")[0];
+
+    cloudinary.uploader.destroy(public_id, async (error, result) => {
+      if (error) {
+        return res.status(500).json({
+          message: "Error al eliminar el archivo en Cloudinary",
+          error,
+        });
       }
 
       await pool.query(
-        `UPDATE facturas SET archivo = NULL WHERE id = $1 AND usuario_id = $2`,
+        `UPDATE facturas SET archivo = NULL, archivo_url = NULL WHERE id = $1 AND usuario_id = $2`,
         [id, usuario_id]
       );
 
-      res.json({ message: "Archivo eliminado correctamente" });
+      res.json({ message: "Factura y archivo eliminados correctamente" });
     });
   } catch (error) {
-    res.status(500).json({ message: "Error en el servidor" });
+    res
+      .status(500)
+      .json({ message: "Error en el servidor", error: error.message });
   }
 };
 
