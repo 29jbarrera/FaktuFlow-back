@@ -1,20 +1,31 @@
 const pool = require("../db");
 const fs = require("fs");
 const path = require("path");
-const UPLOADS_BASE_URL = process.env.UPLOADS_BASE_URL;
 
 const createFactura = async (req, res) => {
   const { cliente_id, fecha_emision, importe, estado, numero, descripcion } =
     req.body;
   const usuario_id = req.user.id;
-  const archivo = req.file ? req.file.filename : null;
+
+  let archivo = null;
+  let archivo_url = null;
+
+  if (req.file) {
+    try {
+      archivo_url = req.file.path;
+      archivo = req.file.filename;
+    } catch (error) {
+      return res.status(500).json({ message: "Error al procesar archivo" });
+    }
+  }
 
   try {
     const user = await pool.query("SELECT rol FROM usuarios WHERE id = $1", [
       usuario_id,
     ]);
+    const rol = user.rows[0]?.rol;
 
-    if (user.rows[0].rol !== "admin") {
+    if (rol !== "admin") {
       const facturaCount = await pool.query(
         `SELECT COUNT(*) FROM facturas WHERE usuario_id = $1`,
         [usuario_id]
@@ -27,6 +38,7 @@ const createFactura = async (req, res) => {
         });
       }
     }
+
     if (!fecha_emision || !importe || estado === undefined || !cliente_id) {
       return res.status(400).json({
         message: "Fecha de emisión, importe, cliente y estado son obligatorios",
@@ -34,8 +46,9 @@ const createFactura = async (req, res) => {
     }
 
     const newFactura = await pool.query(
-      `INSERT INTO facturas (usuario_id, cliente_id, fecha_emision, importe, estado, numero, descripcion, archivo) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
+      `INSERT INTO facturas 
+        (usuario_id, cliente_id, fecha_emision, importe, estado, numero, descripcion, archivo,archivo_url) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
        RETURNING *`,
       [
         usuario_id,
@@ -46,12 +59,19 @@ const createFactura = async (req, res) => {
         numero || null,
         descripcion || null,
         archivo || null,
+        archivo_url || null,
       ]
     );
 
+    const facturaCreada = newFactura.rows[0];
+
+    if (archivo_url) {
+      facturaCreada.archivo_url = archivo_url;
+    }
+
     res.status(201).json({
       message: "Factura creada con éxito",
-      factura: newFactura.rows[0],
+      factura: facturaCreada,
     });
   } catch (error) {
     if (error.code === "23505" && error.constraint === "facturas_numero_key") {
@@ -60,7 +80,10 @@ const createFactura = async (req, res) => {
       });
     }
 
-    res.status(500).json({ message: "Error en el servidor" });
+    return res.status(500).json({
+      message: "Error en el servidor",
+      error: error.message,
+    });
   }
 };
 
@@ -111,12 +134,26 @@ const getFacturasByUser = async (req, res) => {
     );
     const totalCount = parseInt(totalCountResult.rows[0].count);
 
-    const facturasConUrl = result.rows.map((factura) => ({
-      ...factura,
-      archivo_url: factura.archivo
-        ? `${UPLOADS_BASE_URL}/${factura.usuario_id}/${factura.archivo}`
-        : null,
-    }));
+    const facturasConUrl = result.rows.map((factura) => {
+      let archivo_url = factura.archivo_url;
+
+      if (factura.archivo) {
+        const folder = `faktuflow/${usuarioId}`;
+        const public_id = factura.archivo;
+        const extension = factura.archivo.split(".").pop().toLowerCase();
+
+        if (["jpg", "jpeg", "png"].includes(extension)) {
+          archivo_url = `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/image/upload/v${public_id}.${extension}`;
+        } else if (extension === "pdf") {
+          archivo_url = `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/raw/upload/v${public_id}.pdf`;
+        }
+      }
+
+      return {
+        ...factura,
+        archivo_url,
+      };
+    });
 
     res.status(200).json({
       facturas: facturasConUrl,
@@ -234,21 +271,16 @@ const deleteFactura = async (req, res) => {
     const archivo = factura.rows[0].archivo;
 
     if (archivo) {
-      const filePath = path.join(
-        __dirname,
-        "..",
-        "uploads",
-        String(usuario_id),
-        archivo
-      );
+      const relativePath = archivo.replace(/^\/uploads\//, "");
+      const filePath = path.join(__dirname, "..", "uploads", relativePath);
 
-      fs.unlink(filePath, (err) => {
-        if (err) {
-          return res
-            .status(500)
-            .json({ message: "Error al eliminar el archivo" });
-        }
-      });
+      try {
+        await fs.unlink(filePath);
+      } catch (err) {
+        return res
+          .status(500)
+          .json({ message: "Error al eliminar el archivo" });
+      }
     }
 
     await pool.query(`DELETE FROM facturas WHERE id = $1 AND usuario_id = $2`, [
@@ -256,9 +288,9 @@ const deleteFactura = async (req, res) => {
       usuario_id,
     ]);
 
-    res.json({ message: "Factura eliminada con éxito" });
+    return res.json({ message: "Factura eliminada con éxito" });
   } catch (error) {
-    res.status(500).json({ message: "Error en el servidor" });
+    return res.status(500).json({ message: "Error en el servidor" });
   }
 };
 
