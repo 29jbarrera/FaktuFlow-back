@@ -1,7 +1,8 @@
 const pool = require("../db");
 const fs = require("fs");
 const path = require("path");
-const cloudinary = require("cloudinary").v2;
+const { cloudinary } = require("../utils/cloudinary");
+const streamifier = require("streamifier");
 
 const createFactura = async (req, res) => {
   const { cliente_id, fecha_emision, importe, estado, numero, descripcion } =
@@ -11,80 +12,120 @@ const createFactura = async (req, res) => {
   let archivo = null;
   let archivo_url = null;
 
+  // Procesamiento del archivo en memoria
   if (req.file) {
     try {
-      archivo_url = req.file.path;
-      archivo = req.file.filename;
-    } catch (error) {
-      return res.status(500).json({ message: "Error al procesar archivo" });
-    }
-  }
+      const ext = path.extname(req.file.originalname).toLowerCase();
+      const esPDF = ext === ".pdf";
+      const resourceType = esPDF ? "raw" : "image";
 
-  try {
-    const user = await pool.query("SELECT rol FROM usuarios WHERE id = $1", [
-      usuario_id,
-    ]);
-    const rol = user.rows[0]?.rol;
+      const fileName = path
+        .parse(req.file.originalname)
+        .name.replace(/\s+/g, "-")
+        .replace(/[^\w\-]/g, "");
 
-    if (rol !== "admin") {
-      const facturaCount = await pool.query(
-        `SELECT COUNT(*) FROM facturas WHERE usuario_id = $1`,
-        [usuario_id]
+      const folder = `faktuflow/${usuario_id}`;
+      const public_id = `${folder}/${fileName}`;
+
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          folder, // <-- este nuevo
+          public_id,
+          resource_type: resourceType,
+          use_filename: false,
+          unique_filename: false,
+          overwrite: true,
+        },
+        (error, result) => {
+          if (error) {
+            console.error("Error al subir archivo:", error);
+            return res
+              .status(500)
+              .json({ message: "Error al procesar archivo" });
+          }
+
+          archivo = result.public_id;
+          archivo_url = result.secure_url;
+
+          continuarInsert();
+        }
       );
 
-      if (parseInt(facturaCount.rows[0].count) >= 250) {
+      streamifier.createReadStream(req.file.buffer).pipe(uploadStream);
+    } catch (error) {
+      console.error("Error general al procesar archivo:", error);
+      return res.status(500).json({ message: "Error al procesar archivo" });
+    }
+  } else {
+    continuarInsert(); // sin archivo
+  }
+
+  // Lógica separada para insertar la factura después de la subida
+  async function continuarInsert() {
+    try {
+      const user = await pool.query("SELECT rol FROM usuarios WHERE id = $1", [
+        usuario_id,
+      ]);
+      const rol = user.rows[0]?.rol;
+
+      if (rol !== "admin") {
+        const facturaCount = await pool.query(
+          `SELECT COUNT(*) FROM facturas WHERE usuario_id = $1`,
+          [usuario_id]
+        );
+
+        if (parseInt(facturaCount.rows[0].count) >= 250) {
+          return res.status(400).json({
+            message:
+              "Has alcanzado el límite de 250 facturas. Si necesitas más capacidad, contacta al administrador.",
+          });
+        }
+      }
+
+      if (!fecha_emision || !importe || estado === undefined || !cliente_id) {
         return res.status(400).json({
           message:
-            "Has alcanzado el límite de 250 facturas. Si necesitas más capacidad, contacta al administrador.",
+            "Fecha de emisión, importe, cliente y estado son obligatorios",
         });
       }
-    }
 
-    if (!fecha_emision || !importe || estado === undefined || !cliente_id) {
-      return res.status(400).json({
-        message: "Fecha de emisión, importe, cliente y estado son obligatorios",
+      const newFactura = await pool.query(
+        `INSERT INTO facturas 
+          (usuario_id, cliente_id, fecha_emision, importe, estado, numero, descripcion, archivo, archivo_url) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
+         RETURNING *`,
+        [
+          usuario_id,
+          cliente_id,
+          fecha_emision,
+          importe,
+          estado,
+          numero || null,
+          descripcion || null,
+          archivo,
+          archivo_url,
+        ]
+      );
+
+      res.status(201).json({
+        message: "Factura creada con éxito",
+        factura: newFactura.rows[0],
+      });
+    } catch (error) {
+      if (
+        error.code === "23505" &&
+        error.constraint === "facturas_numero_key"
+      ) {
+        return res
+          .status(400)
+          .json({ message: "Ya existe una factura con ese número." });
+      }
+
+      return res.status(500).json({
+        message: "Error en el servidor",
+        error: error.message,
       });
     }
-
-    const newFactura = await pool.query(
-      `INSERT INTO facturas 
-        (usuario_id, cliente_id, fecha_emision, importe, estado, numero, descripcion, archivo,archivo_url) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
-       RETURNING *`,
-      [
-        usuario_id,
-        cliente_id,
-        fecha_emision,
-        importe,
-        estado,
-        numero || null,
-        descripcion || null,
-        archivo || null,
-        archivo_url || null,
-      ]
-    );
-
-    const facturaCreada = newFactura.rows[0];
-
-    if (archivo_url) {
-      facturaCreada.archivo_url = archivo_url;
-    }
-
-    res.status(201).json({
-      message: "Factura creada con éxito",
-      factura: facturaCreada,
-    });
-  } catch (error) {
-    if (error.code === "23505" && error.constraint === "facturas_numero_key") {
-      return res.status(400).json({
-        message: "Ya existe una factura con ese número.",
-      });
-    }
-
-    return res.status(500).json({
-      message: "Error en el servidor",
-      error: error.message,
-    });
   }
 };
 
@@ -202,22 +243,50 @@ const updateFactura = async (req, res) => {
     }
 
     let archivoActual = facturaResult.rows[0].archivo;
+    let archivoUrl = facturaResult.rows[0].archivo_url;
 
     if (req.file) {
-      if (archivoActual) {
-        const oldFilePath = path.join(
-          __dirname,
-          "..",
-          "uploads",
-          String(usuario_id),
-          archivoActual
+      const ext = path.extname(req.file.originalname).toLowerCase();
+      const esPDF = ext === ".pdf";
+      const resourceType = esPDF ? "raw" : "image";
+
+      const fileName = path
+        .parse(req.file.originalname)
+        .name.replace(/\s+/g, "-")
+        .replace(/[^\w\-]/g, "");
+
+      const public_id = `faktuflow/${usuario_id}/${fileName}`;
+
+      // Eliminar archivo anterior en Cloudinary
+      if (archivoActual && archivoUrl) {
+        const oldResourceType = archivoUrl.includes("/raw/") ? "raw" : "image";
+        const match = archivoUrl.match(
+          /\/(?:raw|image)\/upload\/(?:v\d+\/)?(.+?)(?:\.\w+)?$/
         );
-        fs.unlink(oldFilePath, (err) => {
-          if (err) {
+        const oldPublicId = match ? match[1] : null;
+
+        if (oldPublicId) {
+          const deleteResult = await cloudinary.uploader.destroy(oldPublicId, {
+            resource_type: oldResourceType,
+          });
+
+          if (deleteResult.result !== "ok") {
+            console.warn("Archivo anterior no encontrado o no eliminado");
           }
-        });
+        }
       }
-      archivoActual = req.file.filename;
+
+      // Subir nuevo archivo
+      const uploadResult = await cloudinary.uploader.upload(req.file.path, {
+        resource_type: resourceType,
+        public_id,
+        use_filename: false,
+        unique_filename: false,
+        overwrite: true,
+      });
+
+      archivoActual = uploadResult.public_id;
+      archivoUrl = uploadResult.secure_url;
     }
 
     const updatedFacturaResult = await pool.query(
@@ -228,19 +297,19 @@ const updateFactura = async (req, res) => {
            estado = $4,
            numero = $5,
            descripcion = $6,
-           archivo = $7
-       WHERE id = $8 AND usuario_id = $9
+           archivo = $7,
+           archivo_url = $8
+       WHERE id = $9 AND usuario_id = $10
        RETURNING *`,
       [
-        cliente_id || facturaResult.rows[0].cliente_id,
-        fecha_emision || facturaResult.rows[0].fecha_emision,
-        importe || facturaResult.rows[0].importe,
-        estado !== undefined ? estado : facturaResult.rows[0].estado,
-        numero !== undefined ? numero : facturaResult.rows[0].numero,
-        descripcion !== undefined
-          ? descripcion
-          : facturaResult.rows[0].descripcion,
-        archivoActual || null,
+        cliente_id ?? facturaResult.rows[0].cliente_id,
+        fecha_emision ?? facturaResult.rows[0].fecha_emision,
+        importe ?? facturaResult.rows[0].importe,
+        estado ?? facturaResult.rows[0].estado,
+        numero ?? facturaResult.rows[0].numero,
+        descripcion ?? facturaResult.rows[0].descripcion,
+        archivoActual,
+        archivoUrl,
         id,
         usuario_id,
       ]
@@ -251,7 +320,11 @@ const updateFactura = async (req, res) => {
       factura: updatedFacturaResult.rows[0],
     });
   } catch (error) {
-    res.status(500).json({ message: "Error en el servidor" });
+    console.error("Error en la actualización de la factura:", error);
+    res.status(500).json({
+      message: "Error en el servidor",
+      error: error.message,
+    });
   }
 };
 

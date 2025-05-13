@@ -1,6 +1,6 @@
 const express = require("express");
 const { verifyToken } = require("../middlewares/authMiddleware");
-const { upload } = require("../middlewares/multer");
+const upload = require("../middlewares/multer");
 const {
   createFactura,
   getFacturasByUser,
