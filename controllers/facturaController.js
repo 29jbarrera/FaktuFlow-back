@@ -9,6 +9,10 @@ const createFactura = async (req, res) => {
     req.body;
   const usuario_id = req.user.id;
 
+  console.log("📥 Petición recibida para crear factura");
+  console.log("🔐 Usuario ID:", usuario_id);
+  console.log("📄 Body recibido:", req.body);
+
   let archivo = null;
   let archivo_url = null;
 
@@ -25,6 +29,12 @@ const createFactura = async (req, res) => {
 
       const folder = `faktuflow/${usuario_id}`;
       const public_id = `${folder}/${fileName}`;
+      console.log("☁️ Subiendo a Cloudinary...");
+      console.log("🔧 Configuración:", {
+        folder,
+        public_id,
+        resource_type: resourceType,
+      });
 
       const uploadStream = cloudinary.uploader.upload_stream(
         {
@@ -37,15 +47,16 @@ const createFactura = async (req, res) => {
         },
         (error, result) => {
           if (error) {
-            console.error(
-              "Cloudinary upload error:",
-              JSON.stringify(error, null, 2)
-            );
-
+            console.error("❌ Error al subir archivo a Cloudinary:");
+            console.error(JSON.stringify(error, null, 2));
             return res
               .status(500)
               .json({ message: "Error al procesar archivo" });
           }
+
+          console.log("✅ Archivo subido a Cloudinary con éxito");
+          console.log("📂 Public ID:", result.public_id);
+          console.log("🔗 URL:", result.secure_url);
 
           archivo = result.public_id;
           archivo_url = result.secure_url;
@@ -56,13 +67,16 @@ const createFactura = async (req, res) => {
 
       streamifier.createReadStream(req.file.buffer).pipe(uploadStream);
     } catch (error) {
+      console.error("❌ Excepción en bloque try de subida:", error);
       return res.status(500).json({ message: "Error al procesar archivo" });
     }
   } else {
+    console.warn("⚠️ No se recibió archivo en req.file");
     continuarInsert();
   }
 
   async function continuarInsert() {
+    console.log("🚀 Ejecutando continuarInsert()");
     try {
       const user = await pool.query("SELECT rol FROM usuarios WHERE id = $1", [
         usuario_id,
@@ -89,6 +103,18 @@ const createFactura = async (req, res) => {
             "Fecha de emisión, importe, cliente y estado son obligatorios",
         });
       }
+      console.log("📝 Insertando nueva factura con datos:");
+      console.log({
+        usuario_id,
+        cliente_id,
+        fecha_emision,
+        importe,
+        estado,
+        numero: numero || null,
+        descripcion: descripcion || null,
+        archivo,
+        archivo_url,
+      });
 
       const newFactura = await pool.query(
         `INSERT INTO facturas 
@@ -107,6 +133,8 @@ const createFactura = async (req, res) => {
           archivo_url,
         ]
       );
+      console.log("✅ Factura insertada con éxito");
+      console.log("✅ Factura insertada con éxito");
 
       res.status(201).json({
         message: "Factura creada con éxito",
