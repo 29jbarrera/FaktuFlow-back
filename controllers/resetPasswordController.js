@@ -1,6 +1,6 @@
 const crypto = require("crypto");
 const pool = require("../db");
-const bcrypt = require("bcrypt");
+const bcrypt = require("bcryptjs");
 const moment = require("moment");
 const { sendResetPasswordEmail } = require("../utils/sendEmail");
 
