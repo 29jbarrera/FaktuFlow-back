@@ -11,8 +11,8 @@ const sendVerificationEmail = async (to, verificationCode) => {
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 20px; border-radius: 8px;">
           <div style="text-align: center;">
-           <a href="${process.env.FRONTEND_URL}"target="_blank">
-            <img src="${process.env.BACKEND_URL}/static/FaktuFlow.avif" alt="FaktuFlow Logo" style="width: 150px; margin-bottom: 20px;" />
+           <a href="${process.env.FRONTEND_URL_PROD}"target="_blank">
+            <img src="${process.env.BACKEND_URL_PROD}/static/FaktuFlow.avif" alt="FaktuFlow Logo" style="width: 150px; margin-bottom: 20px;" />
             </a>
           </div>
     
@@ -60,8 +60,8 @@ const sendResetPasswordEmail = async (to, resetLink) => {
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 20px; border-radius: 8px;">
           <div style="text-align: center;">
-            <a href="${process.env.FRONTEND_URL}" target="_blank">
-              <img src="${process.env.BACKEND_URL}/static/FaktuFlow.avif" alt="FaktuFlow Logo" style="width: 150px; margin-bottom: 20px;" />
+            <a href="${process.env.FRONTEND_URL_PROD}" target="_blank">
+              <img src="${process.env.BACKEND_URL_PROD}/static/FaktuFlow.avif" alt="FaktuFlow Logo" style="width: 150px; margin-bottom: 20px;" />
             </a>
           </div>
     

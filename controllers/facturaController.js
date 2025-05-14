@@ -37,6 +37,11 @@ const createFactura = async (req, res) => {
         },
         (error, result) => {
           if (error) {
+            console.error(
+              "Cloudinary upload error:",
+              JSON.stringify(error, null, 2)
+            );
+
             return res
               .status(500)
               .json({ message: "Error al procesar archivo" });
@@ -116,7 +121,6 @@ const createFactura = async (req, res) => {
           .status(400)
           .json({ message: "Ya existe una factura con ese número." });
       }
-
       return res.status(500).json({
         message: "Error en el servidor",
         error: error.message,
