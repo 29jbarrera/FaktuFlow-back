@@ -5,7 +5,7 @@ require("dotenv").config();
 const sendVerificationEmail = async (to, verificationCode) => {
   try {
     const response = await resend.emails.send({
-      from: "onboarding@resend.dev",
+      from: "soporte@faktuflow.es",
       to,
       subject: "FaktuFlow - Tu código de verificación",
       html: `
@@ -54,7 +54,7 @@ const sendVerificationEmail = async (to, verificationCode) => {
 const sendResetPasswordEmail = async (to, resetLink) => {
   try {
     const response = await resend.emails.send({
-      from: "onboarding@resend.dev",
+      from: "soporte@faktuflow.es",
       to,
       subject: "FaktuFlow - Restablece tu contraseña",
       html: `
