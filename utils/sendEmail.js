@@ -5,14 +5,14 @@ require("dotenv").config();
 const sendVerificationEmail = async (to, verificationCode) => {
   try {
     const response = await resend.emails.send({
-      from: "soporte@faktuflow.es",
+      from: "FaktuFlow <soporte@faktuflow.es>",
       to,
       subject: "FaktuFlow - Tu código de verificación",
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 20px; border-radius: 8px;">
           <div style="text-align: center;">
            <a href="${process.env.FRONTEND_URL_PROD}"target="_blank">
-            <img src="${process.env.BACKEND_URL_PROD}/static/FaktuFlow.avif" alt="FaktuFlow Logo" style="width: 150px; margin-bottom: 20px;" />
+            <img src="${process.env.BACKEND_URL_PROD}static/FaktuFlow.avif" alt="FaktuFlow Logo" style="width: 150px; margin-bottom: 20px;" />
             </a>
           </div>
     
@@ -54,14 +54,14 @@ const sendVerificationEmail = async (to, verificationCode) => {
 const sendResetPasswordEmail = async (to, resetLink) => {
   try {
     const response = await resend.emails.send({
-      from: "soporte@faktuflow.es",
+      from: "FaktuFlow <soporte@faktuflow.es>",
       to,
       subject: "FaktuFlow - Restablece tu contraseña",
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 20px; border-radius: 8px;">
           <div style="text-align: center;">
             <a href="${process.env.FRONTEND_URL_PROD}" target="_blank">
-              <img src="${process.env.BACKEND_URL_PROD}/static/FaktuFlow.avif" alt="FaktuFlow Logo" style="width: 150px; margin-bottom: 20px;" />
+              <img src="${process.env.BACKEND_URL_PROD}static/FaktuFlow.avif" alt="FaktuFlow Logo" style="width: 150px; margin-bottom: 20px;" />
             </a>
           </div>
     
