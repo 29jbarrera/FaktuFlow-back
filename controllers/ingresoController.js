@@ -22,7 +22,7 @@ const createIngreso = async (req, res) => {
       );
 
       const cantidadIngresos = parseInt(result.rows[0].count, 10);
-      if (cantidadIngresos >= 3) {
+      if (cantidadIngresos >= 300) {
         return res.status(400).json({
           message:
             "Has alcanzado el límite de 300 ingresos por usuario. Si necesitas más capacidad, contacta al administrador.",
