@@ -1,3 +1,5 @@
+const pool = require("../db");
+
 const ping = (req, res) => {
   res.status(200).json({
     status: "ok",
