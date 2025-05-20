@@ -17,10 +17,10 @@ const createGasto = async (req, res) => {
       );
 
       const cantidadGastos = parseInt(result.rows[0].count, 10);
-      if (cantidadGastos >= 200) {
+      if (cantidadGastos >= 1000) {
         return res.status(400).json({
           message:
-            "Has alcanzado el límite de 200 gastos por usuario. Si necesitas más capacidad, contacta al administrador.",
+            "Has alcanzado el límite de 1000 gastos por usuario. Si necesitas más capacidad, contacta al administrador.",
         });
       }
     }
