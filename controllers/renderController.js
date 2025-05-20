@@ -9,8 +9,6 @@ const ping = (req, res) => {
 
 const keepAlive = async (req, res) => {
   const apiKey = req.query.key;
-  console.log("Received key:", apiKey);
-  console.log("Expected key:", process.env.KEEP_ALIVE_KEY);
 
   if (apiKey !== process.env.KEEP_ALIVE_KEY) {
     return res.status(403).send("No autorizado");
@@ -20,7 +18,6 @@ const keepAlive = async (req, res) => {
     await pool.query("SELECT 1");
     res.status(200).send("Alive");
   } catch (err) {
-    console.error("Error en consulta DB en /keep-alive:", err);
     res.status(500).send("Error");
   }
 };
