@@ -108,14 +108,16 @@ const createFactura = async (req, res) => {
         factura: newFactura.rows[0],
       });
     } catch (error) {
-      if (
-        error.code === "23505" &&
-        error.constraint === "facturas_numero_key"
-      ) {
-        return res
-          .status(400)
-          .json({ message: "Ya existe una factura con ese número." });
+      if (error.code === "23505") {
+        const constraint = error.constraint || "";
+        if (constraint === "facturas_usuario_numero_key") {
+          return res.status(400).json({
+            message: "Ya existe una factura con ese número.",
+          });
+        }
       }
+      console.error("Error SQL", error.code, error.constraint);
+
       return res.status(500).json({
         message: "Error en el servidor",
         error: error.message,
@@ -328,7 +330,16 @@ const updateFactura = async (req, res) => {
       });
     }
   } catch (error) {
-    res.status(500).json({
+    if (error.code === "23505") {
+      const constraint = error.constraint || "";
+      if (constraint === "facturas_usuario_numero_key") {
+        return res.status(400).json({
+          message: "Ya existe una factura con ese número.",
+        });
+      }
+    }
+
+    return res.status(500).json({
       message: "Error en el servidor",
       error: error.message,
     });
