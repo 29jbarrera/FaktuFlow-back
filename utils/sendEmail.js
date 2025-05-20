@@ -8,13 +8,14 @@ const sendVerificationEmail = async (to, verificationCode) => {
       from: "FaktuFlow <soporte@faktuflow.es>",
       to,
       subject: "FaktuFlow - Tu código de verificación",
+      //   <div style="text-align: center;">
+      //  <a href="${process.env.FRONTEND_URL_PROD}"target="_blank">
+      //   <img src="${process.env.BACKEND_URL_PROD}static/FaktuFlow.avif" alt="FaktuFlow Logo" style="width: 150px; margin-bottom: 20px;" />
+      //   </a>
+      // </div>
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 20px; border-radius: 8px;">       
-        <div style="text-align: center;">
-             <a href="${process.env.FRONTEND_URL_PROD}"target="_blank">
-              <img src="${process.env.BACKEND_URL_PROD}static/FaktuFlow.avif" alt="FaktuFlow Logo" style="width: 150px; margin-bottom: 20px;" />
-              </a>
-            </div>
+
           <h2 style="color: #112c35; text-align: center;">¡Verifica tu cuenta!</h2>
           <p style="font-size: 16px; color: #333;">
             Gracias por registrarte en <span style="font-weight: bold; color: #4ce1b9">FaktuFlow</span>, tu solución integral para la gestión de facturas, gastos e ingresos.
@@ -56,14 +57,13 @@ const sendResetPasswordEmail = async (to, resetLink) => {
       from: "FaktuFlow <soporte@faktuflow.es>",
       to,
       subject: "FaktuFlow - Restablece tu contraseña",
-
+      //  <div style="text-align: center;">
+      //   <a href="${process.env.FRONTEND_URL_PROD}" target="_blank">
+      //     <img src="${process.env.BACKEND_URL_PROD}static/FaktuFlow.avif" alt="FaktuFlow Logo" style="width: 150px; margin-bottom: 20px;" />
+      // </a>
+      // </div>
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 20px; border-radius: 8px;">   
-           <div style="text-align: center;">
-            <a href="${process.env.FRONTEND_URL_PROD}" target="_blank">
-              <img src="${process.env.BACKEND_URL_PROD}static/FaktuFlow.avif" alt="FaktuFlow Logo" style="width: 150px; margin-bottom: 20px;" />
-          </a>
-          </div>
           <h2 style="color: #112c35; text-align: center;">Restablece tu contraseña</h2>
           <p style="font-size: 16px; color: #333;">
             Hemos recibido una solicitud para restablecer la contraseña de tu cuenta en <span style="font-weight: bold; color: #4ce1b9">FaktuFlow</span>.
