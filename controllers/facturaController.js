@@ -70,10 +70,10 @@ const createFactura = async (req, res) => {
           [usuario_id]
         );
 
-        if (parseInt(facturaCount.rows[0].count) >= 250) {
+        if (parseInt(facturaCount.rows[0].count) >= 1000) {
           return res.status(400).json({
             message:
-              "Has alcanzado el límite de 250 facturas. Si necesitas más capacidad, contacta al administrador.",
+              "Has alcanzado el límite de 1000 facturas. Si necesitas más capacidad, contacta al administrador.",
           });
         }
       }

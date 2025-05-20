@@ -30,10 +30,10 @@ const createCliente = async (req, res) => {
 
       const clienteCount = parseInt(clienteCountResult.rows[0].count, 10);
 
-      if (clienteCount >= 80) {
+      if (clienteCount >= 500) {
         return res.status(400).json({
           message:
-            "Has alcanzado el límite de 80 clientes por usuario. Si necesitas más capacidad, contacta al administrador.",
+            "Has alcanzado el límite de 500 clientes por usuario. Si necesitas más capacidad, contacta al administrador.",
         });
       }
     }
