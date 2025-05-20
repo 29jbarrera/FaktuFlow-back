@@ -1,7 +1,9 @@
 const express = require("express");
 const router = express.Router();
-const healthController = require("../controllers/renderController");
+const { ping, keepAlive } = require("../controllers/renderController");
 
-router.get("/ping", healthController.ping);
+router.get("/ping", ping);
+
+router.get("/keep-alive", keepAlive);
 
 module.exports = router;
