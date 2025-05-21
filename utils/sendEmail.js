@@ -130,16 +130,13 @@ const sendWelcomeEmail = async (to) => {
               <img src="${process.env.BACKEND_URL_PROD}static/FaktuFlow.avif" alt="FaktuFlow Logo" style="width: 150px; margin-bottom: 20px;" />
             </a>
           </div>
-          <h2 style="color: #112c35; text-align: center;">¡Bienvenido a FaktuFlow!</h2>
+          <h2 style="color: #112c35; text-align: center;">¡Bienvenid@ a FaktuFlow!</h2>
           <p style="font-size: 16px; color: #333;">
             Te damos la bienvenida a <strong style="color: #4ce1b9;">FaktuFlow</strong>, La forma más moderna de gestionar tus finanzas, facturas y clientes desde cualquier dispositivo.
           </p>
-          <p style="font-size: 16px; color: #333;">
-          Una vez verifiques tu cuenta, podrás empezar a usar <strong style="color: #4ce1b9;">FaktuFlow</strong> y simplificar la gestión de tu negocio desde tu móvil u ordenador.
-          </p>
 
           <p style="font-size: 16px; color: #333;">
-          Estamos encantados de tenerte con nosotros. Si necesitas ayuda, no dudes en contactarnos. ¡Bienvenido a la comunidad FaktuFlow!
+          Estamos encantados de tenerte con nosotros. Si necesitas ayuda, no dudes en contactarnos. ¡Bienvenid@ a la comunidad FaktuFlow!
           </p>
 
           <div style="text-align: center; margin: 30px;">
