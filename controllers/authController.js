@@ -1,5 +1,5 @@
 const bcrypt = require("bcryptjs");
-const { encrypt, decrypt } = require("../utils/encryption");
+const { encrypt, decrypt, hash } = require("../utils/encryption");
 const jwt = require("jsonwebtoken");
 const pool = require("../db");
 const axios = require("axios");
@@ -12,10 +12,11 @@ const register = async (req, res) => {
 
   try {
     const encryptedEmail = encrypt(email);
+    const emailHash = hash(email); // hash SHA-256
 
     const userExists = await pool.query(
-      "SELECT * FROM usuarios WHERE email = $1",
-      [encryptedEmail]
+      "SELECT * FROM usuarios WHERE email_hash = $1",
+      [emailHash]
     );
     if (userExists.rows.length > 0) {
       return res.status(400).json({ message: "El usuario ya está registrado" });
@@ -30,11 +31,15 @@ const register = async (req, res) => {
     verificationCodeExpiry.setHours(verificationCodeExpiry.getHours() + 1);
 
     const newUser = await pool.query(
-      "INSERT INTO usuarios (nombre, apellidos, email, password, rol, fecha_registro, verificado, codigo_verificacion, verification_code_expiry) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id, nombre, apellidos, email, rol, fecha_registro, codigo_verificacion, verification_code_expiry",
+      `INSERT INTO usuarios 
+        (nombre, apellidos, email, email_hash, password, rol, fecha_registro, verificado, codigo_verificacion, verification_code_expiry) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) 
+       RETURNING id, nombre, apellidos, email, rol, fecha_registro, codigo_verificacion, verification_code_expiry`,
       [
         nombre,
         apellidos,
         encryptedEmail,
+        emailHash,
         hashedPassword,
         rol || "autonomo",
         fecha_registro,
@@ -44,23 +49,20 @@ const register = async (req, res) => {
       ]
     );
 
-    try {
-      const emailSent = await sendVerificationEmail(email, verificationCode);
-      if (!emailSent || emailSent.error) {
-        return res.status(500).json({
-          message: "Error al enviar el correo de verificación.",
-        });
-      }
-
-      return res.status(201).json({
-        message:
-          "Usuario registrado correctamente. Revisa tu correo para verificar tu cuenta.",
-        user: newUser.rows[0],
+    const emailSent = await sendVerificationEmail(email, verificationCode);
+    if (!emailSent || emailSent.error) {
+      return res.status(500).json({
+        message: "Error al enviar el correo de verificación.",
       });
-    } catch (err) {
-      return res.status(500).json({ message: "Fallo al enviar el correo." });
     }
+
+    return res.status(201).json({
+      message:
+        "Usuario registrado correctamente. Revisa tu correo para verificar tu cuenta.",
+      user: newUser.rows[0],
+    });
   } catch (error) {
+    console.error("Error en registro:", error);
     res.status(500).json({ message: "Error en el servidor." });
   }
 };
@@ -75,6 +77,7 @@ const login = async (req, res) => {
   }
 
   try {
+    // Verificación reCAPTCHA
     const recaptchaVerificationResponse = await axios.post(
       `https://www.google.com/recaptcha/api/siteverify`,
       null,
@@ -92,11 +95,12 @@ const login = async (req, res) => {
       });
     }
 
-    const encryptedEmail = encrypt(email);
+    const emailHash = hash(email); // Aquí usas hash para buscar
 
-    const user = await pool.query("SELECT * FROM usuarios WHERE email = $1", [
-      encryptedEmail,
-    ]);
+    const user = await pool.query(
+      "SELECT * FROM usuarios WHERE email_hash = $1",
+      [emailHash]
+    );
 
     if (user.rows.length === 0) {
       return res.status(400).json({ message: "Credenciales inválidas" });
@@ -130,7 +134,7 @@ const login = async (req, res) => {
       message: "Inicio de sesión exitoso",
       token,
       usuario_id: userData.id,
-      email: decrypt(userData.email),
+      email: decrypt(userData.email), // desencriptas para mostrar
       rol: userData.rol,
       nombre: userData.nombre,
       apellidos: userData.apellidos,
@@ -192,10 +196,12 @@ const updateUserInfo = async (req, res) => {
 
   try {
     const encryptedEmail = encrypt(email);
+    const hashedEmail = hash(email); // aquí haces el hash SHA-256
 
+    // Verificar que no exista otro usuario con el mismo email_hash, excepto el usuario actual
     const emailCheck = await pool.query(
-      "SELECT id FROM usuarios WHERE email = $1 AND id <> $2",
-      [encryptedEmail, usuario_id]
+      "SELECT id FROM usuarios WHERE email_hash = $1 AND id <> $2",
+      [hashedEmail, usuario_id]
     );
 
     if (emailCheck.rows.length > 0) {
@@ -204,12 +210,13 @@ const updateUserInfo = async (req, res) => {
         .json({ message: "El correo ya está siendo usado por otro usuario." });
     }
 
+    // Actualizar ambos campos, email y email_hash
     const updateQuery = await pool.query(
       `UPDATE usuarios 
-       SET nombre = $1, apellidos = $2, email = $3 
-       WHERE id = $4 
+       SET nombre = $1, apellidos = $2, email = $3, email_hash = $4
+       WHERE id = $5 
        RETURNING id, nombre, apellidos, email`,
-      [nombre, apellidos, encryptedEmail, usuario_id]
+      [nombre, apellidos, encryptedEmail, hashedEmail, usuario_id]
     );
 
     if (!updateQuery.rows.length) {
@@ -241,11 +248,11 @@ const verifyCode = async (req, res) => {
   }
 
   try {
-    const encryptedEmail = encrypt(email);
+    const hashedEmail = hash(email);
 
     const userQuery = await pool.query(
-      "SELECT * FROM usuarios WHERE email = $1",
-      [encryptedEmail]
+      "SELECT * FROM usuarios WHERE email_hash = $1",
+      [hashedEmail]
     );
 
     if (userQuery.rows.length === 0) {
@@ -274,9 +281,14 @@ const verifyCode = async (req, res) => {
         .json({ message: "El código de verificación ha expirado" });
     }
 
-    await pool.query("UPDATE usuarios SET verificado = true WHERE email = $1", [
-      encryptedEmail,
-    ]);
+    await pool.query(
+      `UPDATE usuarios 
+        SET verificado = true, 
+        codigo_verificacion = NULL, 
+        verification_code_expiry = NULL 
+        WHERE email_hash = $1`,
+      [hashedEmail]
+    );
 
     res
       .status(200)
@@ -294,11 +306,11 @@ const resendVerificationCode = async (req, res) => {
   }
 
   try {
-    const encryptedEmail = encrypt(email);
+    const hashedEmail = hash(email);
 
     const userQuery = await pool.query(
-      "SELECT * FROM usuarios WHERE email = $1",
-      [encryptedEmail]
+      "SELECT * FROM usuarios WHERE email_hash = $1",
+      [hashedEmail]
     );
 
     if (userQuery.rows.length === 0) {
@@ -330,8 +342,8 @@ const resendVerificationCode = async (req, res) => {
     );
 
     await pool.query(
-      "UPDATE usuarios SET codigo_verificacion = $1, verification_code_expiry = $2 WHERE email = $3",
-      [newVerificationCode, newVerificationCodeExpiry, encryptedEmail]
+      "UPDATE usuarios SET codigo_verificacion = $1, verification_code_expiry = $2 WHERE email_hash = $3",
+      [newVerificationCode, newVerificationCodeExpiry, hashedEmail]
     );
 
     const emailSent = await sendVerificationEmail(email, newVerificationCode);
