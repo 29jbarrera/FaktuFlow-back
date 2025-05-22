@@ -75,9 +75,16 @@ router.put(
       .withMessage("El nombre del gasto debe ser una cadena de caracteres"),
     body("categoria")
       .optional()
-      .isIn(["Mano de obra", "Transporte", "Cuota", "Otros"])
+      .isIn([
+        "Transporte",
+        "Suscripciones",
+        "Mano de obra",
+        "Dominio y Hosting",
+        "Cuota",
+        "Otros",
+      ])
       .withMessage(
-        "La categoría debe ser uno de los siguientes valores: 'Mano de obra', 'Transporte', 'Cuota', 'Otros'"
+        "La categoría debe ser uno de los siguientes valores: 'Transporte','Suscripciones','Mano de obra', 'Dominio y Hosting', 'Cuota', 'Otros'"
       ),
     body("importe_total")
       .optional()
