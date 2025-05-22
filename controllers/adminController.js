@@ -44,7 +44,6 @@ const getUsersWithStats = async (req, res) => {
         try {
           decryptedEmail = decrypt(user.email); // intenta desencriptar
         } catch (err) {
-          console.error("Error desencriptando email:", user.email, err);
           decryptedEmail = "[ERROR AL DESENCRIPTAR]";
         }
 

@@ -1,15 +1,14 @@
 const pool = require("../db");
+const { encrypt, decrypt } = require("../utils/encryption");
 
 const createCliente = async (req, res) => {
   const { nombre, email, telefono, direccion_fiscal, usuario_id } = req.body;
 
-  try {
-    if (!usuario_id) {
-      return res
-        .status(400)
-        .json({ message: "El usuario no está autenticado" });
-    }
+  if (!usuario_id) {
+    return res.status(400).json({ message: "El usuario no está autenticado" });
+  }
 
+  try {
     // Verificar el rol del usuario
     const userResult = await pool.query(
       "SELECT rol FROM usuarios WHERE id = $1",
@@ -38,9 +37,27 @@ const createCliente = async (req, res) => {
       }
     }
 
+    // Encriptar los campos antes de la inserción
+    let encryptedNombre,
+      encryptedEmail,
+      encryptedTelefono,
+      encryptedDireccionFiscal;
+    try {
+      encryptedNombre = encrypt(nombre);
+      encryptedEmail = encrypt(email);
+      encryptedTelefono = telefono ? encrypt(telefono) : null;
+      encryptedDireccionFiscal = direccion_fiscal
+        ? encrypt(direccion_fiscal)
+        : null;
+    } catch (encryptionError) {
+      console.error("Error al encriptar los datos:", encryptionError);
+      return res.status(500).json({ message: "Error al encriptar los datos." });
+    }
+
+    // Verificar si el email ya existe
     const emailExists = await pool.query(
       "SELECT * FROM clientes WHERE email = $1",
-      [email]
+      [encryptedEmail]
     );
 
     if (emailExists.rows.length > 0) {
@@ -50,14 +67,14 @@ const createCliente = async (req, res) => {
     }
 
     const newCliente = await pool.query(
-      `INSERT INTO clientes (nombre, email, telefono, direccion_fiscal,usuario_id) 
+      `INSERT INTO clientes (nombre, email, telefono, direccion_fiscal, usuario_id) 
        VALUES ($1, $2, $3, $4, $5) 
        RETURNING *`,
       [
-        nombre,
-        email || null,
-        telefono || null,
-        direccion_fiscal || null,
+        encryptedNombre,
+        encryptedEmail,
+        encryptedTelefono,
+        encryptedDireccionFiscal,
         usuario_id,
       ]
     );
@@ -67,6 +84,7 @@ const createCliente = async (req, res) => {
       cliente: newCliente.rows[0],
     });
   } catch (error) {
+    console.error("Error en createCliente:", error);
     res.status(500).json({ message: "Error en el servidor" });
   }
 };
