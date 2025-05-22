@@ -1,4 +1,5 @@
 const bcrypt = require("bcryptjs");
+const { encrypt } = require("../utils/encryption");
 const jwt = require("jsonwebtoken");
 const pool = require("../db");
 const axios = require("axios");
@@ -10,9 +11,11 @@ const register = async (req, res) => {
   const { nombre, apellidos, email, password, rol } = req.body;
 
   try {
+    const encryptedEmail = encrypt(email);
+
     const userExists = await pool.query(
       "SELECT * FROM usuarios WHERE email = $1",
-      [email]
+      [encryptedEmail]
     );
     if (userExists.rows.length > 0) {
       return res.status(400).json({ message: "El usuario ya está registrado" });
@@ -31,7 +34,7 @@ const register = async (req, res) => {
       [
         nombre,
         apellidos,
-        email,
+        encryptedEmail,
         hashedPassword,
         rol || "autonomo",
         fecha_registro,
