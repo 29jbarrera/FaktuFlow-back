@@ -59,11 +59,12 @@ router.put(
     param("id").isInt().withMessage("El ID debe ser un número entero"),
     body("nombre").notEmpty().withMessage("El nombre es obligatorio"),
     body("email")
-      .optional()
+      .optional({ nullable: true })
       .isEmail()
       .withMessage("El formato del email no es válido"),
     body("telefono")
-      .optional()
+      .optional({ nullable: true })
+      .customSanitizer((value) => (value === "" ? null : value))
       .matches(/^\d{9}$/)
       .withMessage("El teléfono debe tener exactamente 9 dígitos numéricos"),
   ],
