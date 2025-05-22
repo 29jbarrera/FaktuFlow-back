@@ -1,5 +1,5 @@
 const bcrypt = require("bcryptjs");
-const { encrypt } = require("../utils/encryption");
+const { encrypt, decrypt } = require("../utils/encryption");
 const jwt = require("jsonwebtoken");
 const pool = require("../db");
 const axios = require("axios");
@@ -92,30 +92,35 @@ const login = async (req, res) => {
       });
     }
 
+    const encryptedEmail = encrypt(email);
+
     const user = await pool.query("SELECT * FROM usuarios WHERE email = $1", [
-      email,
+      encryptedEmail,
     ]);
+
     if (user.rows.length === 0) {
       return res.status(400).json({ message: "Credenciales inválidas" });
     }
 
-    if (!user.rows[0].verificado) {
+    const userData = user.rows[0];
+
+    if (!userData.verificado) {
       return res.status(400).json({
         message: "Por favor verifica tu cuenta antes de iniciar sesión.",
       });
     }
 
-    const validPassword = await bcrypt.compare(password, user.rows[0].password);
+    const validPassword = await bcrypt.compare(password, userData.password);
     if (!validPassword) {
       return res.status(400).json({ message: "Credenciales inválidas" });
     }
 
     const token = jwt.sign(
       {
-        id: user.rows[0].id,
-        nombre: user.rows[0].nombre,
-        apellidos: user.rows[0].apellidos,
-        rol: user.rows[0].rol,
+        id: userData.id,
+        nombre: userData.nombre,
+        apellidos: userData.apellidos,
+        rol: userData.rol,
       },
       process.env.JWT_SECRET,
       { expiresIn: "12h" }
@@ -124,13 +129,14 @@ const login = async (req, res) => {
     res.json({
       message: "Inicio de sesión exitoso",
       token,
-      usuario_id: user.rows[0].id,
-      email: user.rows[0].email,
-      rol: user.rows[0].rol,
-      nombre: user.rows[0].nombre,
-      apellidos: user.rows[0].apellidos,
+      usuario_id: userData.id,
+      email: decrypt(userData.email),
+      rol: userData.rol,
+      nombre: userData.nombre,
+      apellidos: userData.apellidos,
     });
   } catch (error) {
+    console.error(error);
     res.status(500).json({ message: "Error en el servidor" });
   }
 };
@@ -185,9 +191,11 @@ const updateUserInfo = async (req, res) => {
   }
 
   try {
+    const encryptedEmail = encrypt(email);
+
     const emailCheck = await pool.query(
       "SELECT id FROM usuarios WHERE email = $1 AND id <> $2",
-      [email, usuario_id]
+      [encryptedEmail, usuario_id]
     );
 
     if (emailCheck.rows.length > 0) {
@@ -201,12 +209,24 @@ const updateUserInfo = async (req, res) => {
        SET nombre = $1, apellidos = $2, email = $3 
        WHERE id = $4 
        RETURNING id, nombre, apellidos, email`,
-      [nombre, apellidos, email, usuario_id]
+      [nombre, apellidos, encryptedEmail, usuario_id]
     );
+
+    if (!updateQuery.rows.length) {
+      return res.status(404).json({ message: "Usuario no encontrado." });
+    }
+
+    const updatedUser = updateQuery.rows[0];
+
+    if (updatedUser.email) {
+      updatedUser.email = decrypt(updatedUser.email);
+    } else {
+      updatedUser.email = null;
+    }
 
     res.status(200).json({
       message: "Información actualizada con éxito.",
-      user: updateQuery.rows[0],
+      user: updatedUser,
     });
   } catch (error) {
     res.status(500).json({ message: "Error en el servidor." });
@@ -216,24 +236,32 @@ const updateUserInfo = async (req, res) => {
 const verifyCode = async (req, res) => {
   const { email, codigo_verificacion } = req.body;
 
-  try {
-    const user = await pool.query("SELECT * FROM usuarios WHERE email = $1", [
-      email,
-    ]);
+  if (!email || !codigo_verificacion) {
+    return res.status(400).json({ message: "Faltan campos obligatorios." });
+  }
 
-    if (user.rows.length === 0) {
+  try {
+    const encryptedEmail = encrypt(email);
+
+    const userQuery = await pool.query(
+      "SELECT * FROM usuarios WHERE email = $1",
+      [encryptedEmail]
+    );
+
+    if (userQuery.rows.length === 0) {
       return res.status(404).json({ message: "Usuario no encontrado" });
     }
 
-    const existingUser = user.rows[0];
+    const existingUser = userQuery.rows[0];
 
     if (existingUser.verificado) {
       return res.status(200).json({
         message: "La cuenta ya está verificada. Puedes iniciar sesión",
       });
     }
+    const cleanCode = codigo_verificacion.toString().trim();
 
-    if (existingUser.codigo_verificacion !== codigo_verificacion) {
+    if (existingUser.codigo_verificacion.toString() !== cleanCode) {
       return res
         .status(400)
         .json({ message: "Código de verificación incorrecto" });
@@ -247,8 +275,9 @@ const verifyCode = async (req, res) => {
     }
 
     await pool.query("UPDATE usuarios SET verificado = true WHERE email = $1", [
-      email,
+      encryptedEmail,
     ]);
+
     res
       .status(200)
       .json({ message: "Cuenta verificada con éxito. Puedes iniciar sesión." });
@@ -260,28 +289,37 @@ const verifyCode = async (req, res) => {
 const resendVerificationCode = async (req, res) => {
   const { email } = req.body;
 
-  try {
-    const user = await pool.query("SELECT * FROM usuarios WHERE email = $1", [
-      email,
-    ]);
+  if (!email) {
+    return res.status(400).json({ message: "Falta el email." });
+  }
 
-    if (user.rows.length === 0) {
+  try {
+    const encryptedEmail = encrypt(email);
+
+    const userQuery = await pool.query(
+      "SELECT * FROM usuarios WHERE email = $1",
+      [encryptedEmail]
+    );
+
+    if (userQuery.rows.length === 0) {
       return res.status(400).json({ message: "El usuario no existe" });
     }
 
-    if (user.rows[0].verificado) {
+    const user = userQuery.rows[0];
+
+    if (user.verificado) {
       return res.status(400).json({
         message: "Tu cuenta ya está verificada. Puedes iniciar sesión.",
       });
     }
 
     const currentTime = new Date();
-    const verificationCodeExpiry = user.rows[0].verification_code_expiry;
+    const verificationCodeExpiry = user.verification_code_expiry;
 
     if (currentTime < verificationCodeExpiry) {
       return res.status(400).json({
         message:
-          "Aún no ha expirado el código de verificación. Intentelo de nuevo más tarde.",
+          "Aún no ha expirado el código de verificación. Inténtalo de nuevo más tarde.",
       });
     }
 
@@ -293,7 +331,7 @@ const resendVerificationCode = async (req, res) => {
 
     await pool.query(
       "UPDATE usuarios SET codigo_verificacion = $1, verification_code_expiry = $2 WHERE email = $3",
-      [newVerificationCode, newVerificationCodeExpiry, email]
+      [newVerificationCode, newVerificationCodeExpiry, encryptedEmail]
     );
 
     const emailSent = await sendVerificationEmail(email, newVerificationCode);
