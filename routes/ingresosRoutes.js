@@ -77,15 +77,17 @@ router.put(
     body("categoria")
       .optional()
       .isIn([
-        "Cosecha Pipas",
-        "Cosecha Trigo",
-        "Cosecha Garbanzo",
-        "Subvención",
-        "Otros",
         "Salario",
+        "Productos",
+        "Licencias",
+        "Venta de Activos",
+        "Software",
+        "Subvención",
+        "Cosecha",
+        "Otros",
       ])
       .withMessage(
-        "La categoría debe ser uno de los siguientes valores: 'Cosecha Pipas', 'Cosecha Trigo', 'Cosecha Garbanzo', 'Subvención', 'Otros', 'Salario'"
+        "La categoría debe ser uno de los siguientes valores: 'Salario', 'Productos', 'Licencias', 'Venta de Activos', 'Software', 'Subvención', 'Cosecha', 'Otros'"
       ),
     body("importe_total")
       .optional()
