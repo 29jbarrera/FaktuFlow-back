@@ -36,7 +36,11 @@ router.post(
     body("numero")
       .optional()
       .isString()
-      .withMessage("El número de la factura debe ser una cadena de caracteres"),
+      .withMessage("El número de la factura debe ser una cadena de caracteres")
+      .isLength({ max: 30 })
+      .withMessage(
+        "El número de la factura no puede superar los 30 caracteres"
+      ),
     body("cliente_id")
       .optional()
       .isInt()
@@ -91,7 +95,11 @@ router.put(
     body("numero")
       .optional()
       .isString()
-      .withMessage("El número de la factura debe ser una cadena de caracteres"),
+      .withMessage("El número de la factura debe ser una cadena de caracteres")
+      .isLength({ max: 30 })
+      .withMessage(
+        "El número de la factura no puede superar los 30 caracteres"
+      ),
     body("cliente_id")
       .optional()
       .isInt()

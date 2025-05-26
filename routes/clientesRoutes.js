@@ -24,11 +24,17 @@ router.post(
   "/",
   verifyToken,
   [
-    body("nombre").notEmpty().withMessage("El nombre es obligatorio"),
+    body("nombre")
+      .notEmpty()
+      .withMessage("El nombre es obligatorio")
+      .isLength({ max: 30 })
+      .withMessage("El nombre no puede superar los 30 caracteres"),
     body("email")
       .optional()
       .isEmail()
-      .withMessage("El formato del email no es válido"),
+      .withMessage("El formato del email no es válido")
+      .isLength({ max: 30 })
+      .withMessage("El email no puede superar los 30 caracteres"),
     body("telefono")
       .optional()
       .matches(/^\d{9}$/)
@@ -57,11 +63,17 @@ router.put(
   verifyToken,
   [
     param("id").isInt().withMessage("El ID debe ser un número entero"),
-    body("nombre").notEmpty().withMessage("El nombre es obligatorio"),
+    body("nombre")
+      .notEmpty()
+      .withMessage("El nombre es obligatorio")
+      .isLength({ max: 30 })
+      .withMessage("El nombre no puede superar los 30 caracteres"),
     body("email")
       .optional({ nullable: true })
       .isEmail()
-      .withMessage("El formato del email no es válido"),
+      .withMessage("El formato del email no es válido")
+      .isLength({ max: 30 })
+      .withMessage("El email no puede superar los 30 caracteres"),
     body("telefono")
       .optional({ nullable: true })
       .customSanitizer((value) => (value === "" ? null : value))

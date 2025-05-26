@@ -15,7 +15,16 @@ const router = express.Router();
 router.post(
   "/register",
   [
-    body("nombre").notEmpty().withMessage("El nombre es obligatorio"),
+    body("nombre")
+      .notEmpty()
+      .withMessage("El nombre es obligatorio")
+      .isLength({ max: 30 })
+      .withMessage("El nombre no puede superar los 30 caracteres"),
+    body("apellidos")
+      .notEmpty()
+      .withMessage("Los apellidos son obligatorios")
+      .isLength({ max: 40 })
+      .withMessage("Los apellidos no pueden superar los 40 caracteres"),
     body("email").isEmail().withMessage("El email no es válido"),
     body("password")
       .isLength({ min: 6 })

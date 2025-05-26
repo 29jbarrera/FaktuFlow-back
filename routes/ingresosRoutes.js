@@ -27,7 +27,9 @@ router.post(
       .notEmpty()
       .withMessage("El nombre del ingreso es obligatorio")
       .isString()
-      .withMessage("El nombre del ingreso debe ser una cadena de caracteres"),
+      .withMessage("El nombre del ingreso debe ser una cadena de caracteres")
+      .isLength({ max: 40 })
+      .withMessage("El nombre no puede superar los 40 caracteres"),
     body("categoria")
       .notEmpty()
       .isIn([
@@ -73,7 +75,9 @@ router.put(
     body("nombre_ingreso")
       .optional()
       .isString()
-      .withMessage("El nombre del ingreso debe ser una cadena de caracteres"),
+      .withMessage("El nombre del ingreso debe ser una cadena de caracteres")
+      .isLength({ max: 40 })
+      .withMessage("El nombre no puede superar los 40 caracteres"),
     body("categoria")
       .optional()
       .isIn([

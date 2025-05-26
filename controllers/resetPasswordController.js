@@ -22,11 +22,11 @@ const forgotPassword = async (req, res) => {
 
     if (
       user.ultimo_reset &&
-      moment(user.ultimo_reset).isAfter(moment().subtract(7, "days"))
+      moment(user.ultimo_reset).isAfter(moment().subtract(3, "months"))
     ) {
       return res.status(429).json({
         message:
-          "Solo puedes solicitar un restablecimiento de contraseña una vez cada 7 días.",
+          "Solo puedes solicitar un restablecimiento de contraseña una vez cada 3 meses.",
       });
     }
 
