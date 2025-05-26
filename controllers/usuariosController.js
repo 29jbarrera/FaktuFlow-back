@@ -72,4 +72,4 @@ const updateUser = async (req, res) => {
   }
 };
 
-module.exports = { getAllUsers, getUserById, updateUser };
+module.exports = { getUserById, updateUser };

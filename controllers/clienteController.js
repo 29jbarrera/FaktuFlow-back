@@ -9,7 +9,7 @@ const createCliente = async (req, res) => {
   }
 
   try {
-    // Verificar el rol del usuario
+    // Verificar rol del usuario
     const userResult = await pool.query(
       "SELECT rol FROM usuarios WHERE id = $1",
       [usuario_id]
@@ -21,14 +21,13 @@ const createCliente = async (req, res) => {
 
     const rol = userResult.rows[0].rol;
 
+    // Límite de clientes si no es admin
     if (rol !== "admin") {
       const clienteCountResult = await pool.query(
         "SELECT COUNT(*) FROM clientes WHERE usuario_id = $1",
         [usuario_id]
       );
-
       const clienteCount = parseInt(clienteCountResult.rows[0].count, 10);
-
       if (clienteCount >= 500) {
         return res.status(400).json({
           message:
@@ -37,35 +36,37 @@ const createCliente = async (req, res) => {
       }
     }
 
-    // Encriptar los campos antes de la inserción
+    // Encriptar datos
     let encryptedNombre,
-      encryptedEmail,
-      encryptedTelefono,
-      encryptedDireccionFiscal;
+      encryptedEmail = null,
+      encryptedTelefono = null,
+      encryptedDireccionFiscal = null;
+
     try {
       encryptedNombre = encrypt(nombre);
-      encryptedEmail = encrypt(email);
-      encryptedTelefono = telefono ? encrypt(telefono) : null;
-      encryptedDireccionFiscal = direccion_fiscal
-        ? encrypt(direccion_fiscal)
-        : null;
+      if (email) encryptedEmail = encrypt(email);
+      if (telefono) encryptedTelefono = encrypt(telefono);
+      if (direccion_fiscal)
+        encryptedDireccionFiscal = encrypt(direccion_fiscal);
     } catch (encryptionError) {
       console.error("Error al encriptar los datos:", encryptionError);
       return res.status(500).json({ message: "Error al encriptar los datos." });
     }
 
-    // Verificar si el email ya existe
-    const emailExists = await pool.query(
-      "SELECT * FROM clientes WHERE email = $1",
-      [encryptedEmail]
-    );
-
-    if (emailExists.rows.length > 0) {
-      return res
-        .status(400)
-        .json({ message: "El correo electrónico ya está en uso" });
+    // Verificar email duplicado solo si se envió
+    if (encryptedEmail) {
+      const emailExists = await pool.query(
+        "SELECT 1 FROM clientes WHERE email = $1",
+        [encryptedEmail]
+      );
+      if (emailExists.rows.length > 0) {
+        return res
+          .status(400)
+          .json({ message: "El correo electrónico ya está en uso" });
+      }
     }
 
+    // Insertar cliente
     const newCliente = await pool.query(
       `INSERT INTO clientes (nombre, email, telefono, direccion_fiscal, usuario_id) 
        VALUES ($1, $2, $3, $4, $5) 
