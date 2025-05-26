@@ -12,7 +12,7 @@ const register = async (req, res) => {
 
   try {
     const encryptedEmail = encrypt(email);
-    const emailHash = hash(email); // hash SHA-256
+    const emailHash = hash(email);
 
     const userExists = await pool.query(
       "SELECT * FROM usuarios WHERE email_hash = $1",
@@ -62,7 +62,6 @@ const register = async (req, res) => {
       user: newUser.rows[0],
     });
   } catch (error) {
-    console.error("Error en registro:", error);
     res.status(500).json({ message: "Error en el servidor." });
   }
 };
@@ -95,7 +94,7 @@ const login = async (req, res) => {
       });
     }
 
-    const emailHash = hash(email); // Aquí usas hash para buscar
+    const emailHash = hash(email);
 
     const user = await pool.query(
       "SELECT * FROM usuarios WHERE email_hash = $1",
@@ -134,13 +133,11 @@ const login = async (req, res) => {
       message: "Inicio de sesión exitoso",
       token,
       usuario_id: userData.id,
-      email: decrypt(userData.email), // desencriptas para mostrar
-      rol: userData.rol,
+      email: decrypt(userData.email),
       nombre: userData.nombre,
       apellidos: userData.apellidos,
     });
   } catch (error) {
-    console.error(error);
     res.status(500).json({ message: "Error en el servidor" });
   }
 };
@@ -196,9 +193,8 @@ const updateUserInfo = async (req, res) => {
 
   try {
     const encryptedEmail = encrypt(email);
-    const hashedEmail = hash(email); // aquí haces el hash SHA-256
+    const hashedEmail = hash(email);
 
-    // Verificar que no exista otro usuario con el mismo email_hash, excepto el usuario actual
     const emailCheck = await pool.query(
       "SELECT id FROM usuarios WHERE email_hash = $1 AND id <> $2",
       [hashedEmail, usuario_id]
@@ -210,7 +206,6 @@ const updateUserInfo = async (req, res) => {
         .json({ message: "El correo ya está siendo usado por otro usuario." });
     }
 
-    // Actualizar ambos campos, email y email_hash
     const updateQuery = await pool.query(
       `UPDATE usuarios 
        SET nombre = $1, apellidos = $2, email = $3, email_hash = $4

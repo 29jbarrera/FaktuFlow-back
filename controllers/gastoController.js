@@ -7,7 +7,6 @@ const createGasto = async (req, res) => {
   const usuario_id = req.user.id;
 
   try {
-    // Verificar rol del usuario
     const user = await pool.query("SELECT rol FROM usuarios WHERE id = $1", [
       usuario_id,
     ]);
@@ -27,14 +26,12 @@ const createGasto = async (req, res) => {
       }
     }
 
-    // Validar campos obligatorios
     if (!nombre_gasto || !categoria || !importe_total) {
       return res.status(400).json({
         message: "Nombre del gasto, categoría e importe total son obligatorios",
       });
     }
 
-    // Encriptar solo el nombre_gasto
     const nombre_gasto_encrypted = encrypt(nombre_gasto);
 
     const newGasto = await pool.query(
@@ -52,7 +49,6 @@ const createGasto = async (req, res) => {
       ]
     );
 
-    // Desencriptar el nombre antes de devolverlo
     const gasto = newGasto.rows[0];
     gasto.nombre_gasto = decrypt(gasto.nombre_gasto);
 
@@ -61,7 +57,6 @@ const createGasto = async (req, res) => {
       gasto,
     });
   } catch (error) {
-    console.error("Error en createGasto:", error);
     res.status(500).json({ message: "Error en el servidor" });
   }
 };
@@ -117,7 +112,6 @@ const getGastos = async (req, res) => {
     const totalCountResult = await pool.query(totalQuery, queryParams);
     const totalCount = parseInt(totalCountResult.rows[0].count);
 
-    // Desencriptar nombre_gasto
     const gastos = result.rows.map((gasto) => ({
       ...gasto,
       nombre_gasto: decrypt(gasto.nombre_gasto),
@@ -128,7 +122,6 @@ const getGastos = async (req, res) => {
       total: totalCount,
     });
   } catch (error) {
-    console.error("Error en getGastos:", error);
     res.status(500).json({ message: "Error al obtener los gastos." });
   }
 };
@@ -177,7 +170,6 @@ const updateGasto = async (req, res) => {
       ]
     );
 
-    // Desencriptar solo el nombre para mostrarlo al frontend
     const gastoActualizado = updatedGasto.rows[0];
     gastoActualizado.nombre_gasto = decrypt(gastoActualizado.nombre_gasto);
 
@@ -186,7 +178,6 @@ const updateGasto = async (req, res) => {
       gasto: gastoActualizado,
     });
   } catch (error) {
-    console.error("Error en updateGasto:", error);
     res.status(500).json({ message: "Error en el servidor" });
   }
 };

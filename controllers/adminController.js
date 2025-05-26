@@ -42,7 +42,7 @@ const getUsersWithStats = async (req, res) => {
 
         let decryptedEmail;
         try {
-          decryptedEmail = decrypt(user.email); // intenta desencriptar
+          decryptedEmail = decrypt(user.email);
         } catch (err) {
           decryptedEmail = "[ERROR AL DESENCRIPTAR]";
         }

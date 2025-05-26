@@ -7,7 +7,6 @@ const createIngreso = async (req, res) => {
     req.body;
 
   try {
-    // Verificar rol usuario
     const user = await pool.query("SELECT rol FROM usuarios WHERE id = $1", [
       usuario_id,
     ]);
@@ -27,20 +26,15 @@ const createIngreso = async (req, res) => {
       }
     }
 
-    // Validar campos obligatorios
     if (!nombre_ingreso || !categoria || !importe_total) {
       return res.status(400).json({
         message: "El nombre, categoría e importe total son obligatorios",
       });
     }
-
-    // Encriptar solo nombre_ingreso
     const nombre_ingreso_encrypted = encrypt(nombre_ingreso);
 
-    // Fecha sin encriptar, si no se pasa usamos fecha actual
     const fecha_valor = fecha_ingreso ? new Date(fecha_ingreso) : new Date();
 
-    // Insertar en DB, solo nombre_ingreso encriptado
     const newIngreso = await pool.query(
       `INSERT INTO ingresos 
         (nombre_ingreso, usuario_id, categoria, fecha_ingreso, importe_total, descripcion) 
@@ -51,12 +45,11 @@ const createIngreso = async (req, res) => {
         usuario_id,
         categoria,
         fecha_valor,
-        importe_total, // importe sin encriptar
-        descripcion, // descripcion sin encriptar
+        importe_total,
+        descripcion,
       ]
     );
 
-    // Desencriptar nombre_ingreso para la respuesta
     const ingreso = newIngreso.rows[0];
     ingreso.nombre_ingreso = decrypt(ingreso.nombre_ingreso);
 
@@ -65,7 +58,6 @@ const createIngreso = async (req, res) => {
       ingreso,
     });
   } catch (error) {
-    console.error("Error en createIngreso:", error);
     res.status(500).json({ message: "Error en el servidor" });
   }
 };
@@ -104,9 +96,6 @@ const getIngresos = async (req, res) => {
           TO_CHAR(fecha_ingreso, 'DD/MM/YYYY') LIKE $2
         )
       `;
-      // NOTA: No se puede buscar en nombre_ingreso porque está encriptado
-      // Si quieres buscar en nombre_ingreso, deberías desencriptar en backend
-      // y filtrar, pero eso es poco eficiente para bases grandes.
     }
 
     const paginatedQuery = `
@@ -128,7 +117,6 @@ const getIngresos = async (req, res) => {
     const totalCountResult = await pool.query(totalQuery, queryParams);
     const totalCount = parseInt(totalCountResult.rows[0].count);
 
-    // Desencriptar nombre_ingreso en cada fila
     const ingresosDesencriptados = result.rows.map((ingreso) => ({
       ...ingreso,
       nombre_ingreso: decrypt(ingreso.nombre_ingreso),
@@ -139,7 +127,6 @@ const getIngresos = async (req, res) => {
       total: totalCount,
     });
   } catch (error) {
-    console.error("Error en getIngresos:", error);
     res.status(500).json({ message: "Error al obtener los ingresos." });
   }
 };
@@ -151,7 +138,6 @@ const updateIngreso = async (req, res) => {
   const usuario_id = req.user.id;
 
   try {
-    // Obtener ingreso existente
     const ingresoQuery = await pool.query(
       "SELECT * FROM ingresos WHERE id = $1 AND usuario_id = $2",
       [id, usuario_id]
@@ -165,13 +151,11 @@ const updateIngreso = async (req, res) => {
 
     const ingreso = ingresoQuery.rows[0];
 
-    // Encriptar nombre_ingreso solo si viene en la actualización
     const nombre_ingreso_encrypted =
       nombre_ingreso !== undefined
         ? encrypt(nombre_ingreso)
         : ingreso.nombre_ingreso;
 
-    // Mantener valores anteriores si no vienen en la actualización
     const categoria_actual =
       categoria !== undefined ? categoria : ingreso.categoria;
     const fecha_ingreso_actual =
@@ -181,7 +165,6 @@ const updateIngreso = async (req, res) => {
     const descripcion_actual =
       descripcion !== undefined ? descripcion : ingreso.descripcion;
 
-    // Actualizar ingreso
     const updatedIngreso = await pool.query(
       `UPDATE ingresos
        SET nombre_ingreso = $1,
@@ -204,7 +187,6 @@ const updateIngreso = async (req, res) => {
 
     const ingresoActualizado = updatedIngreso.rows[0];
 
-    // Desencriptar nombre_ingreso antes de enviar la respuesta
     ingresoActualizado.nombre_ingreso = decrypt(
       ingresoActualizado.nombre_ingreso
     );
@@ -214,7 +196,6 @@ const updateIngreso = async (req, res) => {
       ingreso: ingresoActualizado,
     });
   } catch (error) {
-    console.error("Error en updateIngreso:", error);
     res.status(500).json({ message: "Error en el servidor" });
   }
 };

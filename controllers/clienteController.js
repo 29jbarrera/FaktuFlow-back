@@ -9,7 +9,6 @@ const createCliente = async (req, res) => {
   }
 
   try {
-    // Verificar rol del usuario
     const userResult = await pool.query(
       "SELECT rol FROM usuarios WHERE id = $1",
       [usuario_id]
@@ -21,7 +20,6 @@ const createCliente = async (req, res) => {
 
     const rol = userResult.rows[0].rol;
 
-    // Límite de clientes si no es admin
     if (rol !== "admin") {
       const clienteCountResult = await pool.query(
         "SELECT COUNT(*) FROM clientes WHERE usuario_id = $1",
@@ -36,7 +34,6 @@ const createCliente = async (req, res) => {
       }
     }
 
-    // Encriptar datos
     let encryptedNombre,
       encryptedEmail = null,
       encryptedTelefono = null,
@@ -49,11 +46,9 @@ const createCliente = async (req, res) => {
       if (direccion_fiscal)
         encryptedDireccionFiscal = encrypt(direccion_fiscal);
     } catch (encryptionError) {
-      console.error("Error al encriptar los datos:", encryptionError);
       return res.status(500).json({ message: "Error al encriptar los datos." });
     }
 
-    // Verificar email duplicado solo si se envió
     if (encryptedEmail) {
       const emailExists = await pool.query(
         "SELECT 1 FROM clientes WHERE email = $1",
@@ -66,7 +61,6 @@ const createCliente = async (req, res) => {
       }
     }
 
-    // Insertar cliente
     const newCliente = await pool.query(
       `INSERT INTO clientes (nombre, email, telefono, direccion_fiscal, usuario_id) 
        VALUES ($1, $2, $3, $4, $5) 
@@ -85,7 +79,6 @@ const createCliente = async (req, res) => {
       cliente: newCliente.rows[0],
     });
   } catch (error) {
-    console.error("Error en createCliente:", error);
     res.status(500).json({ message: "Error en el servidor" });
   }
 };
@@ -213,7 +206,6 @@ const updateCliente = async (req, res) => {
       return res.status(404).json({ message: "Cliente no encontrado" });
     }
 
-    // Asegurarse de que los campos vacíos sean null (para borrar valores)
     nombre = nombre?.trim() || null;
     email = email?.trim() || null;
     direccion_fiscal = direccion_fiscal?.trim() || null;

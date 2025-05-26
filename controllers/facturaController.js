@@ -120,8 +120,6 @@ const createFactura = async (req, res) => {
           });
         }
       }
-      console.error("Error SQL", error.code, error.constraint);
-
       return res.status(500).json({
         message: "Error en el servidor",
         error: error.message,
@@ -205,7 +203,7 @@ const getFacturasByUser = async (req, res) => {
           "No se pudo desencriptar el nombre del cliente:",
           error.message
         );
-        cliente_nombre = factura.cliente_nombre; // fallback si falla desencriptar
+        cliente_nombre = factura.cliente_nombre;
       }
       try {
         if (factura.numero) {
@@ -216,7 +214,7 @@ const getFacturasByUser = async (req, res) => {
           "No se pudo desencriptar el número de factura:",
           error.message
         );
-        numero = factura.numero; // fallback si falla desencriptar
+        numero = factura.numero;
       }
 
       try {
@@ -225,7 +223,7 @@ const getFacturasByUser = async (req, res) => {
         }
       } catch (error) {
         console.warn("No se pudo desencriptar la descripción:", error.message);
-        descripcion = factura.descripcion; // fallback si falla desencriptar
+        descripcion = factura.descripcion;
       }
 
       return {

@@ -46,7 +46,6 @@ const sendVerificationEmail = async (to, verificationCode) => {
     if (response.error) throw new Error(response.error.message);
     return true;
   } catch (err) {
-    console.error("❌ Error enviando email:", err);
     return false;
   }
 };
@@ -112,7 +111,6 @@ const sendResetPasswordEmail = async (to, resetLink) => {
     if (response.error) throw new Error(response.error.message);
     return true;
   } catch (err) {
-    console.error("❌ Error enviando email de restablecimiento:", err);
     return false;
   }
 };
