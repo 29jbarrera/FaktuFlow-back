@@ -3,7 +3,7 @@ const fs = require("fs");
 const path = require("path");
 const { cloudinary } = require("../utils/cloudinary");
 const streamifier = require("streamifier");
-const { decrypt, encrypt } = require("../utils/encryption");
+const { decrypt } = require("../utils/encryption");
 
 const createFactura = async (req, res) => {
   const { cliente_id, fecha_emision, importe, estado, numero, descripcion } =
@@ -86,9 +86,6 @@ const createFactura = async (req, res) => {
         });
       }
 
-      let encryptedNumero = numero ? encrypt(numero) : null;
-      let encryptedDescripcion = descripcion ? encrypt(descripcion) : null;
-
       const newFactura = await pool.query(
         `INSERT INTO facturas 
           (usuario_id, cliente_id, fecha_emision, importe, estado, numero, descripcion, archivo, archivo_url) 
@@ -100,8 +97,8 @@ const createFactura = async (req, res) => {
           fecha_emision,
           importe,
           estado,
-          encryptedNumero,
-          encryptedDescripcion,
+          numero,
+          descripcion,
           archivo,
           archivo_url,
         ]
@@ -341,15 +338,6 @@ const updateFactura = async (req, res) => {
     }
 
     async function actualizarFactura() {
-      const numeroEncrypted =
-        numero !== undefined && numero !== null
-          ? encrypt(numero)
-          : facturaResult.rows[0].numero;
-      const descripcionEncrypted =
-        descripcion !== undefined && descripcion !== null
-          ? encrypt(descripcion)
-          : facturaResult.rows[0].descripcion;
-
       const updatedFacturaResult = await pool.query(
         `UPDATE facturas 
          SET cliente_id = $1,
@@ -367,8 +355,8 @@ const updateFactura = async (req, res) => {
           fecha_emision ?? facturaResult.rows[0].fecha_emision,
           importe ?? facturaResult.rows[0].importe,
           estado ?? facturaResult.rows[0].estado,
-          numeroEncrypted,
-          descripcionEncrypted,
+          numero ?? facturaResult.rows[0].numero,
+          descripcion ?? facturaResult.rows[0].descripcion,
           archivoActual,
           archivoUrl,
           id,

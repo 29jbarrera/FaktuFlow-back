@@ -34,13 +34,11 @@ const createCliente = async (req, res) => {
       }
     }
 
-    let encryptedNombre,
-      encryptedEmail = null,
+    let encryptedEmail = null,
       encryptedTelefono = null,
       encryptedDireccionFiscal = null;
 
     try {
-      encryptedNombre = encrypt(nombre);
       if (email) encryptedEmail = encrypt(email);
       if (telefono) encryptedTelefono = encrypt(telefono);
       if (direccion_fiscal)
@@ -66,7 +64,7 @@ const createCliente = async (req, res) => {
        VALUES ($1, $2, $3, $4, $5) 
        RETURNING *`,
       [
-        encryptedNombre,
+        nombre,
         encryptedEmail,
         encryptedTelefono,
         encryptedDireccionFiscal,
@@ -94,7 +92,7 @@ const getClientesByUser = async (req, res) => {
 
     const clientes = result.rows.map((cliente) => ({
       id: cliente.id,
-      nombre: decrypt(cliente.nombre),
+      nombre: cliente.nombre,
     }));
 
     res.status(200).json({
@@ -151,7 +149,6 @@ const getClientesByUserTable = async (req, res) => {
 
     const clientes = result.rows.map((cliente) => ({
       ...cliente,
-      nombre: decrypt(cliente.nombre),
       email: cliente.email ? decrypt(cliente.email) : null,
       telefono: cliente.telefono ? decrypt(cliente.telefono) : null,
       direccion_fiscal: cliente.direccion_fiscal
@@ -211,7 +208,6 @@ const updateCliente = async (req, res) => {
     direccion_fiscal = direccion_fiscal?.trim() || null;
     telefono = telefono?.toString().trim() || null;
 
-    const nombreEncrypted = nombre ? encrypt(nombre) : null;
     const emailEncrypted = email ? encrypt(email) : null;
     const telefonoEncrypted = telefono ? encrypt(telefono) : null;
     const direccionFiscalEncrypted = direccion_fiscal
@@ -226,13 +222,7 @@ const updateCliente = async (req, res) => {
            direccion_fiscal = $4
        WHERE id = $5
        RETURNING *`,
-      [
-        nombreEncrypted,
-        emailEncrypted,
-        telefonoEncrypted,
-        direccionFiscalEncrypted,
-        id,
-      ]
+      [nombre, emailEncrypted, telefonoEncrypted, direccionFiscalEncrypted, id]
     );
 
     const updatedCliente = updatedClienteResult.rows[0];
@@ -241,7 +231,6 @@ const updateCliente = async (req, res) => {
       message: "Cliente actualizado con éxito",
       cliente: {
         ...updatedCliente,
-        nombre: updatedCliente.nombre ? decrypt(updatedCliente.nombre) : null,
         email: updatedCliente.email ? decrypt(updatedCliente.email) : null,
         telefono: updatedCliente.telefono
           ? decrypt(updatedCliente.telefono)
