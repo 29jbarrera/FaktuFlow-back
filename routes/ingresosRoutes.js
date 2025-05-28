@@ -27,7 +27,9 @@ router.post(
       .notEmpty()
       .withMessage("El nombre del ingreso es obligatorio")
       .isString()
-      .withMessage("El nombre del ingreso debe ser una cadena de caracteres"),
+      .withMessage("El nombre del ingreso debe ser una cadena de caracteres")
+      .isLength({ max: 40 })
+      .withMessage("El nombre no puede superar los 40 caracteres"),
     body("categoria")
       .notEmpty()
       .isIn([
@@ -73,19 +75,23 @@ router.put(
     body("nombre_ingreso")
       .optional()
       .isString()
-      .withMessage("El nombre del ingreso debe ser una cadena de caracteres"),
+      .withMessage("El nombre del ingreso debe ser una cadena de caracteres")
+      .isLength({ max: 40 })
+      .withMessage("El nombre no puede superar los 40 caracteres"),
     body("categoria")
       .optional()
       .isIn([
-        "Cosecha Pipas",
-        "Cosecha Trigo",
-        "Cosecha Garbanzo",
-        "Subvención",
-        "Otros",
         "Salario",
+        "Productos",
+        "Licencias",
+        "Venta de Activos",
+        "Software",
+        "Subvención",
+        "Cosecha",
+        "Otros",
       ])
       .withMessage(
-        "La categoría debe ser uno de los siguientes valores: 'Cosecha Pipas', 'Cosecha Trigo', 'Cosecha Garbanzo', 'Subvención', 'Otros', 'Salario'"
+        "La categoría debe ser uno de los siguientes valores: 'Salario', 'Productos', 'Licencias', 'Venta de Activos', 'Software', 'Subvención', 'Cosecha', 'Otros'"
       ),
     body("importe_total")
       .optional()

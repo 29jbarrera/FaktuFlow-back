@@ -1,12 +1,10 @@
 const express = require("express");
 const { body, param, validationResult } = require("express-validator");
 const {
-  getAllUsers,
   getUserById,
   updateUser,
-  deleteUser,
 } = require("../controllers/usuariosController");
-const { verifyToken, verifyAdmin } = require("../middlewares/authMiddleware");
+const { verifyToken } = require("../middlewares/authMiddleware");
 
 const router = express.Router();
 
@@ -17,8 +15,6 @@ const validateRequest = (req, res, next) => {
   }
   next();
 };
-
-router.get("/", verifyToken, verifyAdmin, getAllUsers);
 
 router.get(
   "/:id",
@@ -48,15 +44,6 @@ router.put(
   ],
   validateRequest,
   updateUser
-);
-
-router.delete(
-  "/:id",
-  verifyToken,
-  verifyAdmin,
-  [param("id").isInt().withMessage("El ID debe ser un número entero válido")],
-  validateRequest,
-  deleteUser
 );
 
 module.exports = router;

@@ -3,6 +3,7 @@ const fs = require("fs");
 const path = require("path");
 const { cloudinary } = require("../utils/cloudinary");
 const streamifier = require("streamifier");
+const { decrypt, encrypt } = require("../utils/encryption");
 
 const createFactura = async (req, res) => {
   const { cliente_id, fecha_emision, importe, estado, numero, descripcion } =
@@ -85,6 +86,9 @@ const createFactura = async (req, res) => {
         });
       }
 
+      let encryptedNumero = numero ? encrypt(numero) : null;
+      let encryptedDescripcion = descripcion ? encrypt(descripcion) : null;
+
       const newFactura = await pool.query(
         `INSERT INTO facturas 
           (usuario_id, cliente_id, fecha_emision, importe, estado, numero, descripcion, archivo, archivo_url) 
@@ -96,8 +100,8 @@ const createFactura = async (req, res) => {
           fecha_emision,
           importe,
           estado,
-          numero || null,
-          descripcion || null,
+          encryptedNumero,
+          encryptedDescripcion,
           archivo,
           archivo_url,
         ]
@@ -116,8 +120,6 @@ const createFactura = async (req, res) => {
           });
         }
       }
-      console.error("Error SQL", error.code, error.constraint);
-
       return res.status(500).json({
         message: "Error en el servidor",
         error: error.message,
@@ -188,18 +190,59 @@ const getFacturasByUser = async (req, res) => {
         }
       }
 
+      let cliente_nombre = null,
+        numero = null,
+        descripcion = null;
+
+      try {
+        if (factura.cliente_nombre) {
+          cliente_nombre = decrypt(factura.cliente_nombre);
+        }
+      } catch (error) {
+        console.warn(
+          "No se pudo desencriptar el nombre del cliente:",
+          error.message
+        );
+        cliente_nombre = factura.cliente_nombre;
+      }
+      try {
+        if (factura.numero) {
+          numero = decrypt(factura.numero);
+        }
+      } catch (error) {
+        console.warn(
+          "No se pudo desencriptar el número de factura:",
+          error.message
+        );
+        numero = factura.numero;
+      }
+
+      try {
+        if (factura.descripcion) {
+          descripcion = decrypt(factura.descripcion);
+        }
+      } catch (error) {
+        console.warn("No se pudo desencriptar la descripción:", error.message);
+        descripcion = factura.descripcion;
+      }
+
       return {
         ...factura,
+        cliente_nombre,
+        numero,
+        descripcion,
         archivo_url,
       };
     });
 
-    res.status(200).json({
+    res.json({
       facturas: facturasConUrl,
       total: totalCount,
+      page,
+      limit,
     });
   } catch (error) {
-    res.status(500).json({ message: "Error al obtener las facturas." });
+    res.status(500).json({ message: "Error en el servidor" });
   }
 };
 
@@ -298,6 +341,15 @@ const updateFactura = async (req, res) => {
     }
 
     async function actualizarFactura() {
+      const numeroEncrypted =
+        numero !== undefined && numero !== null
+          ? encrypt(numero)
+          : facturaResult.rows[0].numero;
+      const descripcionEncrypted =
+        descripcion !== undefined && descripcion !== null
+          ? encrypt(descripcion)
+          : facturaResult.rows[0].descripcion;
+
       const updatedFacturaResult = await pool.query(
         `UPDATE facturas 
          SET cliente_id = $1,
@@ -315,8 +367,8 @@ const updateFactura = async (req, res) => {
           fecha_emision ?? facturaResult.rows[0].fecha_emision,
           importe ?? facturaResult.rows[0].importe,
           estado ?? facturaResult.rows[0].estado,
-          numero ?? facturaResult.rows[0].numero,
-          descripcion ?? facturaResult.rows[0].descripcion,
+          numeroEncrypted,
+          descripcionEncrypted,
           archivoActual,
           archivoUrl,
           id,

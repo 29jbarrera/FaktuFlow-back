@@ -1,16 +1,6 @@
 const pool = require("../db");
 const bcrypt = require("bcryptjs");
-
-const getAllUsers = async (req, res) => {
-  try {
-    const users = await pool.query(
-      "SELECT id, nombre, apellidos, email, rol, fecha_registro FROM usuarios"
-    );
-    res.json(users.rows);
-  } catch (error) {
-    res.status(500).json({ message: "Error en el servidor" });
-  }
-};
+const { decrypt } = require("../utils/encryption");
 
 const getUserById = async (req, res) => {
   const { id } = req.params;
@@ -20,16 +10,22 @@ const getUserById = async (req, res) => {
       return res.status(403).json({ message: "Acceso denegado" });
     }
 
-    const user = await pool.query(
-      "SELECT id, nombre, apellidos, email, rol, fecha_registro  FROM usuarios WHERE id = $1",
+    const result = await pool.query(
+      "SELECT id, nombre, apellidos, email, rol, fecha_registro FROM usuarios WHERE id = $1",
       [id]
     );
 
-    if (user.rows.length === 0) {
+    if (result.rows.length === 0) {
       return res.status(404).json({ message: "Usuario no encontrado" });
     }
 
-    res.json(user.rows[0]);
+    const user = result.rows[0];
+
+    if (user.email) {
+      user.email = decrypt(user.email);
+    }
+
+    res.json(user);
   } catch (error) {
     res.status(500).json({ message: "Error en el servidor" });
   }
@@ -76,23 +72,4 @@ const updateUser = async (req, res) => {
   }
 };
 
-const deleteUser = async (req, res) => {
-  const { id } = req.params;
-
-  try {
-    const result = await pool.query(
-      "DELETE FROM usuarios WHERE id = $1 RETURNING id",
-      [id]
-    );
-
-    if (result.rowCount === 0) {
-      return res.status(404).json({ message: "Usuario no encontrado" });
-    }
-
-    res.json({ message: "Usuario eliminado con éxito" });
-  } catch (error) {
-    res.status(500).json({ message: "Error en el servidor" });
-  }
-};
-
-module.exports = { getAllUsers, getUserById, updateUser, deleteUser };
+module.exports = { getUserById, updateUser };

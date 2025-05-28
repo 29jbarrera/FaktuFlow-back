@@ -1,4 +1,5 @@
 const pool = require("../db");
+const { encrypt, decrypt } = require("../utils/encryption");
 
 const getAdminDashboardStats = async (req, res) => {
   try {
@@ -39,6 +40,13 @@ const getUsersWithStats = async (req, res) => {
       users.rows.map(async (user) => {
         const userId = user.id;
 
+        let decryptedEmail;
+        try {
+          decryptedEmail = decrypt(user.email);
+        } catch (err) {
+          decryptedEmail = "[ERROR AL DESENCRIPTAR]";
+        }
+
         const totalFacturas = await pool.query(
           "SELECT COUNT(*) FROM facturas WHERE usuario_id = $1",
           [userId]
@@ -60,7 +68,7 @@ const getUsersWithStats = async (req, res) => {
           id: user.id,
           nombre: user.nombre,
           apellidos: user.apellidos,
-          email: user.email,
+          email: decryptedEmail,
           rol: user.rol,
           totalFacturas: parseInt(totalFacturas.rows[0].count),
           totalGastos: parseInt(totalGastos.rows[0].count),

@@ -1,6 +1,7 @@
 const crypto = require("crypto");
 const pool = require("../db");
 const bcrypt = require("bcryptjs");
+const { hash } = require("../utils/encryption");
 const moment = require("moment");
 const { sendResetPasswordEmail } = require("../utils/sendEmail");
 
@@ -8,9 +9,11 @@ const forgotPassword = async (req, res) => {
   const { email } = req.body;
 
   try {
+    const emailHash = hash(email);
+
     const userResult = await pool.query(
-      "SELECT * FROM usuarios WHERE email = $1",
-      [email]
+      "SELECT * FROM usuarios WHERE email_hash = $1",
+      [emailHash]
     );
     const user = userResult.rows[0];
     if (!user) {
@@ -19,11 +22,11 @@ const forgotPassword = async (req, res) => {
 
     if (
       user.ultimo_reset &&
-      moment(user.ultimo_reset).isAfter(moment().subtract(7, "days"))
+      moment(user.ultimo_reset).isAfter(moment().subtract(3, "months"))
     ) {
       return res.status(429).json({
         message:
-          "Solo puedes solicitar un restablecimiento de contraseña una vez cada 7 días.",
+          "Solo puedes solicitar un restablecimiento de contraseña una vez cada 3 meses.",
       });
     }
 
@@ -31,8 +34,8 @@ const forgotPassword = async (req, res) => {
     const expiry = new Date(Date.now() + 3600000);
 
     await pool.query(
-      "UPDATE usuarios SET reset_token = $1, reset_token_expiry = $2, ultimo_reset = $3  WHERE email = $4",
-      [token, expiry, new Date(), email]
+      "UPDATE usuarios SET reset_token = $1, reset_token_expiry = $2, ultimo_reset = $3 WHERE email_hash = $4",
+      [token, expiry, new Date(), emailHash]
     );
 
     const resetLink = `${process.env.FRONTEND_URL_PROD}/reset-password?token=${token}&email=${email}`;
@@ -56,9 +59,11 @@ const resetPassword = async (req, res) => {
   const { email, token, newPassword } = req.body;
 
   try {
+    const emailHash = hash(email);
+
     const userQuery = await pool.query(
-      "SELECT * FROM usuarios WHERE email = $1",
-      [email]
+      "SELECT * FROM usuarios WHERE email_hash = $1",
+      [emailHash]
     );
     const user = userQuery.rows[0];
     if (!user || user.reset_token !== token) {
@@ -73,8 +78,8 @@ const resetPassword = async (req, res) => {
     const hashed = await bcrypt.hash(newPassword, salt);
 
     await pool.query(
-      "UPDATE usuarios SET password = $1, reset_token = NULL, reset_token_expiry = NULL WHERE email = $2",
-      [hashed, email]
+      "UPDATE usuarios SET password = $1, reset_token = NULL, reset_token_expiry = NULL WHERE email_hash = $2",
+      [hashed, emailHash]
     );
 
     res.json({ message: "Contraseña restablecida con éxito." });

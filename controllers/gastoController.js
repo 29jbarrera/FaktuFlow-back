@@ -1,4 +1,5 @@
 const pool = require("../db");
+const { encrypt, decrypt } = require("../utils/encryption");
 
 const createGasto = async (req, res) => {
   const { nombre_gasto, categoria, fecha, importe_total, descripcion } =
@@ -31,12 +32,15 @@ const createGasto = async (req, res) => {
       });
     }
 
+    const nombre_gasto_encrypted = encrypt(nombre_gasto);
+
     const newGasto = await pool.query(
-      `INSERT INTO gastos (nombre_gasto, usuario_id, categoria, fecha, importe_total, descripcion) 
+      `INSERT INTO gastos 
+        (nombre_gasto, usuario_id, categoria, fecha, importe_total, descripcion) 
        VALUES ($1, $2, $3, COALESCE($4, NOW()), $5, $6)
        RETURNING *`,
       [
-        nombre_gasto,
+        nombre_gasto_encrypted,
         usuario_id,
         categoria,
         fecha || null,
@@ -45,9 +49,13 @@ const createGasto = async (req, res) => {
       ]
     );
 
-    res
-      .status(201)
-      .json({ message: "Gasto registrado con éxito", gasto: newGasto.rows[0] });
+    const gasto = newGasto.rows[0];
+    gasto.nombre_gasto = decrypt(gasto.nombre_gasto);
+
+    res.status(201).json({
+      message: "Gasto registrado con éxito",
+      gasto,
+    });
   } catch (error) {
     res.status(500).json({ message: "Error en el servidor" });
   }
@@ -104,8 +112,13 @@ const getGastos = async (req, res) => {
     const totalCountResult = await pool.query(totalQuery, queryParams);
     const totalCount = parseInt(totalCountResult.rows[0].count);
 
+    const gastos = result.rows.map((gasto) => ({
+      ...gasto,
+      nombre_gasto: decrypt(gasto.nombre_gasto),
+    }));
+
     res.status(200).json({
-      gastos: result.rows,
+      gastos,
       total: totalCount,
     });
   } catch (error) {
@@ -120,27 +133,49 @@ const updateGasto = async (req, res) => {
     req.body;
 
   try {
-    const gasto = await pool.query(
+    const gastoQuery = await pool.query(
       "SELECT * FROM gastos WHERE id = $1 AND usuario_id = $2",
       [id, usuario_id]
     );
-    if (gasto.rows.length === 0) {
+
+    if (gastoQuery.rows.length === 0) {
       return res
         .status(404)
         .json({ message: "Gasto no encontrado o no autorizado" });
     }
 
+    const gasto = gastoQuery.rows[0];
+
+    const nombre_encrypted = nombre_gasto
+      ? encrypt(nombre_gasto)
+      : gasto.nombre_gasto;
+
     const updatedGasto = await pool.query(
       `UPDATE gastos 
-         SET nombre_gasto = $1, categoria = $2, fecha = COALESCE($3, fecha), 
-             importe_total = $4, descripcion = COALESCE($5, descripcion) 
-         WHERE id = $6 RETURNING *`,
-      [nombre_gasto, categoria, fecha || null, importe_total, descripcion, id]
+         SET nombre_gasto = $1, 
+             categoria = $2, 
+             fecha = COALESCE($3, fecha), 
+             importe_total = $4, 
+             descripcion = COALESCE($5, descripcion) 
+       WHERE id = $6 AND usuario_id = $7
+       RETURNING *`,
+      [
+        nombre_encrypted,
+        categoria !== undefined ? categoria : gasto.categoria,
+        fecha !== undefined ? fecha : gasto.fecha,
+        importe_total !== undefined ? importe_total : gasto.importe_total,
+        descripcion !== undefined ? descripcion : gasto.descripcion,
+        id,
+        usuario_id,
+      ]
     );
+
+    const gastoActualizado = updatedGasto.rows[0];
+    gastoActualizado.nombre_gasto = decrypt(gastoActualizado.nombre_gasto);
 
     res.json({
       message: "Gasto actualizado con éxito",
-      gasto: updatedGasto.rows[0],
+      gasto: gastoActualizado,
     });
   } catch (error) {
     res.status(500).json({ message: "Error en el servidor" });

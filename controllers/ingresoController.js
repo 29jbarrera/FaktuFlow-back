@@ -1,14 +1,10 @@
 const pool = require("../db");
+const { encrypt, decrypt } = require("../utils/encryption");
 
 const createIngreso = async (req, res) => {
   const usuario_id = req.user.id;
-  const {
-    nombre_ingreso,
-    categoria,
-    fecha_ingreso,
-    importe_total,
-    descripcion,
-  } = req.body;
+  let { nombre_ingreso, categoria, fecha_ingreso, importe_total, descripcion } =
+    req.body;
 
   try {
     const user = await pool.query("SELECT rol FROM usuarios WHERE id = $1", [
@@ -29,29 +25,37 @@ const createIngreso = async (req, res) => {
         });
       }
     }
+
     if (!nombre_ingreso || !categoria || !importe_total) {
       return res.status(400).json({
         message: "El nombre, categoría e importe total son obligatorios",
       });
     }
+    const nombre_ingreso_encrypted = encrypt(nombre_ingreso);
+
+    const fecha_valor = fecha_ingreso ? new Date(fecha_ingreso) : new Date();
 
     const newIngreso = await pool.query(
-      `INSERT INTO ingresos (nombre_ingreso, usuario_id, categoria, fecha_ingreso, importe_total, descripcion) 
-       VALUES ($1, $2, $3, COALESCE($4, NOW()), $5, COALESCE($6, NULL)) 
+      `INSERT INTO ingresos 
+        (nombre_ingreso, usuario_id, categoria, fecha_ingreso, importe_total, descripcion) 
+       VALUES ($1, $2, $3, $4, $5, $6) 
        RETURNING *`,
       [
-        nombre_ingreso,
+        nombre_ingreso_encrypted,
         usuario_id,
         categoria,
-        fecha_ingreso || null,
+        fecha_valor,
         importe_total,
-        descripcion || null,
+        descripcion,
       ]
     );
 
+    const ingreso = newIngreso.rows[0];
+    ingreso.nombre_ingreso = decrypt(ingreso.nombre_ingreso);
+
     res.status(201).json({
       message: "Ingreso registrado con éxito",
-      ingreso: newIngreso.rows[0],
+      ingreso,
     });
   } catch (error) {
     res.status(500).json({ message: "Error en el servidor" });
@@ -87,7 +91,6 @@ const getIngresos = async (req, res) => {
       queryParams.push(`%${search}%`);
       whereClause += `
         AND (
-          LOWER(nombre_ingreso) ILIKE $2 OR
           LOWER(categoria) ILIKE $2 OR
           LOWER(descripcion) ILIKE $2 OR
           TO_CHAR(fecha_ingreso, 'DD/MM/YYYY') LIKE $2
@@ -114,8 +117,13 @@ const getIngresos = async (req, res) => {
     const totalCountResult = await pool.query(totalQuery, queryParams);
     const totalCount = parseInt(totalCountResult.rows[0].count);
 
+    const ingresosDesencriptados = result.rows.map((ingreso) => ({
+      ...ingreso,
+      nombre_ingreso: decrypt(ingreso.nombre_ingreso),
+    }));
+
     res.status(200).json({
-      ingresos: result.rows,
+      ingresos: ingresosDesencriptados,
       total: totalCount,
     });
   } catch (error) {
@@ -125,13 +133,8 @@ const getIngresos = async (req, res) => {
 
 const updateIngreso = async (req, res) => {
   const { id } = req.params;
-  const {
-    nombre_ingreso,
-    categoria,
-    fecha_ingreso,
-    importe_total,
-    descripcion,
-  } = req.body;
+  let { nombre_ingreso, categoria, fecha_ingreso, importe_total, descripcion } =
+    req.body;
   const usuario_id = req.user.id;
 
   try {
@@ -148,6 +151,20 @@ const updateIngreso = async (req, res) => {
 
     const ingreso = ingresoQuery.rows[0];
 
+    const nombre_ingreso_encrypted =
+      nombre_ingreso !== undefined
+        ? encrypt(nombre_ingreso)
+        : ingreso.nombre_ingreso;
+
+    const categoria_actual =
+      categoria !== undefined ? categoria : ingreso.categoria;
+    const fecha_ingreso_actual =
+      fecha_ingreso !== undefined ? fecha_ingreso : ingreso.fecha_ingreso;
+    const importe_total_actual =
+      importe_total !== undefined ? importe_total : ingreso.importe_total;
+    const descripcion_actual =
+      descripcion !== undefined ? descripcion : ingreso.descripcion;
+
     const updatedIngreso = await pool.query(
       `UPDATE ingresos
        SET nombre_ingreso = $1,
@@ -158,19 +175,25 @@ const updateIngreso = async (req, res) => {
        WHERE id = $6 AND usuario_id = $7
        RETURNING *`,
       [
-        nombre_ingreso !== undefined ? nombre_ingreso : ingreso.nombre_ingreso,
-        categoria !== undefined ? categoria : ingreso.categoria,
-        fecha_ingreso !== undefined ? fecha_ingreso : ingreso.fecha_ingreso,
-        importe_total !== undefined ? importe_total : ingreso.importe_total,
-        descripcion !== undefined ? descripcion : ingreso.descripcion,
+        nombre_ingreso_encrypted,
+        categoria_actual,
+        fecha_ingreso_actual,
+        importe_total_actual,
+        descripcion_actual,
         id,
         usuario_id,
       ]
     );
 
+    const ingresoActualizado = updatedIngreso.rows[0];
+
+    ingresoActualizado.nombre_ingreso = decrypt(
+      ingresoActualizado.nombre_ingreso
+    );
+
     res.status(200).json({
       message: "Ingreso actualizado con éxito",
-      ingreso: updatedIngreso.rows[0],
+      ingreso: ingresoActualizado,
     });
   } catch (error) {
     res.status(500).json({ message: "Error en el servidor" });

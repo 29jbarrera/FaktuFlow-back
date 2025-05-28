@@ -1,16 +1,14 @@
 const pool = require("../db");
+const { encrypt, decrypt } = require("../utils/encryption");
 
 const createCliente = async (req, res) => {
   const { nombre, email, telefono, direccion_fiscal, usuario_id } = req.body;
 
-  try {
-    if (!usuario_id) {
-      return res
-        .status(400)
-        .json({ message: "El usuario no está autenticado" });
-    }
+  if (!usuario_id) {
+    return res.status(400).json({ message: "El usuario no está autenticado" });
+  }
 
-    // Verificar el rol del usuario
+  try {
     const userResult = await pool.query(
       "SELECT rol FROM usuarios WHERE id = $1",
       [usuario_id]
@@ -27,9 +25,7 @@ const createCliente = async (req, res) => {
         "SELECT COUNT(*) FROM clientes WHERE usuario_id = $1",
         [usuario_id]
       );
-
       const clienteCount = parseInt(clienteCountResult.rows[0].count, 10);
-
       if (clienteCount >= 500) {
         return res.status(400).json({
           message:
@@ -38,26 +34,42 @@ const createCliente = async (req, res) => {
       }
     }
 
-    const emailExists = await pool.query(
-      "SELECT * FROM clientes WHERE email = $1",
-      [email]
-    );
+    let encryptedNombre,
+      encryptedEmail = null,
+      encryptedTelefono = null,
+      encryptedDireccionFiscal = null;
 
-    if (emailExists.rows.length > 0) {
-      return res
-        .status(400)
-        .json({ message: "El correo electrónico ya está en uso" });
+    try {
+      encryptedNombre = encrypt(nombre);
+      if (email) encryptedEmail = encrypt(email);
+      if (telefono) encryptedTelefono = encrypt(telefono);
+      if (direccion_fiscal)
+        encryptedDireccionFiscal = encrypt(direccion_fiscal);
+    } catch (encryptionError) {
+      return res.status(500).json({ message: "Error al encriptar los datos." });
+    }
+
+    if (encryptedEmail) {
+      const emailExists = await pool.query(
+        "SELECT 1 FROM clientes WHERE email = $1",
+        [encryptedEmail]
+      );
+      if (emailExists.rows.length > 0) {
+        return res
+          .status(400)
+          .json({ message: "El correo electrónico ya está en uso" });
+      }
     }
 
     const newCliente = await pool.query(
-      `INSERT INTO clientes (nombre, email, telefono, direccion_fiscal,usuario_id) 
+      `INSERT INTO clientes (nombre, email, telefono, direccion_fiscal, usuario_id) 
        VALUES ($1, $2, $3, $4, $5) 
        RETURNING *`,
       [
-        nombre,
-        email || null,
-        telefono || null,
-        direccion_fiscal || null,
+        encryptedNombre,
+        encryptedEmail,
+        encryptedTelefono,
+        encryptedDireccionFiscal,
         usuario_id,
       ]
     );
@@ -80,8 +92,13 @@ const getClientesByUser = async (req, res) => {
       [usuario_id]
     );
 
+    const clientes = result.rows.map((cliente) => ({
+      id: cliente.id,
+      nombre: decrypt(cliente.nombre),
+    }));
+
     res.status(200).json({
-      clientes: result.rows,
+      clientes,
     });
   } catch (error) {
     res.status(500).json({ message: "Error al obtener los clientes." });
@@ -132,8 +149,18 @@ const getClientesByUserTable = async (req, res) => {
     const totalCountResult = await pool.query(totalQuery, queryParams);
     const totalCount = parseInt(totalCountResult.rows[0].count);
 
+    const clientes = result.rows.map((cliente) => ({
+      ...cliente,
+      nombre: decrypt(cliente.nombre),
+      email: cliente.email ? decrypt(cliente.email) : null,
+      telefono: cliente.telefono ? decrypt(cliente.telefono) : null,
+      direccion_fiscal: cliente.direccion_fiscal
+        ? decrypt(cliente.direccion_fiscal)
+        : null,
+    }));
+
     res.status(200).json({
-      clientes: result.rows,
+      clientes,
       total: totalCount,
     });
   } catch (error) {
@@ -170,32 +197,59 @@ const updateCliente = async (req, res) => {
   let { nombre, email, telefono, direccion_fiscal } = req.body;
 
   try {
-    const cliente = await pool.query("SELECT * FROM clientes WHERE id = $1", [
-      id,
-    ]);
+    const clienteResult = await pool.query(
+      "SELECT * FROM clientes WHERE id = $1",
+      [id]
+    );
 
-    if (cliente.rows.length === 0) {
+    if (clienteResult.rows.length === 0) {
       return res.status(404).json({ message: "Cliente no encontrado" });
     }
-    email = email?.trim() === "" ? null : email;
-    telefono = telefono === 0 || telefono === "" ? null : telefono;
-    direccion_fiscal =
-      direccion_fiscal?.trim() === "" ? null : direccion_fiscal;
 
-    const updatedCliente = await pool.query(
+    nombre = nombre?.trim() || null;
+    email = email?.trim() || null;
+    direccion_fiscal = direccion_fiscal?.trim() || null;
+    telefono = telefono?.toString().trim() || null;
+
+    const nombreEncrypted = nombre ? encrypt(nombre) : null;
+    const emailEncrypted = email ? encrypt(email) : null;
+    const telefonoEncrypted = telefono ? encrypt(telefono) : null;
+    const direccionFiscalEncrypted = direccion_fiscal
+      ? encrypt(direccion_fiscal)
+      : null;
+
+    const updatedClienteResult = await pool.query(
       `UPDATE clientes 
-       SET nombre = COALESCE($1, nombre),
+       SET nombre = $1,
            email = $2,
            telefono = $3,
            direccion_fiscal = $4
        WHERE id = $5
        RETURNING *`,
-      [nombre, email, telefono, direccion_fiscal, id]
+      [
+        nombreEncrypted,
+        emailEncrypted,
+        telefonoEncrypted,
+        direccionFiscalEncrypted,
+        id,
+      ]
     );
+
+    const updatedCliente = updatedClienteResult.rows[0];
 
     res.json({
       message: "Cliente actualizado con éxito",
-      cliente: updatedCliente.rows[0],
+      cliente: {
+        ...updatedCliente,
+        nombre: updatedCliente.nombre ? decrypt(updatedCliente.nombre) : null,
+        email: updatedCliente.email ? decrypt(updatedCliente.email) : null,
+        telefono: updatedCliente.telefono
+          ? decrypt(updatedCliente.telefono)
+          : null,
+        direccion_fiscal: updatedCliente.direccion_fiscal
+          ? decrypt(updatedCliente.direccion_fiscal)
+          : null,
+      },
     });
   } catch (error) {
     res.status(500).json({ message: "Error en el servidor" });

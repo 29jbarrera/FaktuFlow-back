@@ -1,4 +1,5 @@
 const bcrypt = require("bcryptjs");
+const { encrypt, decrypt, hash } = require("../utils/encryption");
 const jwt = require("jsonwebtoken");
 const pool = require("../db");
 const axios = require("axios");
@@ -14,9 +15,12 @@ const register = async (req, res) => {
   const { nombre, apellidos, email, password, rol } = req.body;
 
   try {
+    const encryptedEmail = encrypt(email);
+    const emailHash = hash(email);
+
     const userExists = await pool.query(
-      "SELECT * FROM usuarios WHERE email = $1",
-      [email]
+      "SELECT * FROM usuarios WHERE email_hash = $1",
+      [emailHash]
     );
     if (userExists.rows.length > 0) {
       return res.status(400).json({ message: "El usuario ya está registrado" });
@@ -31,11 +35,15 @@ const register = async (req, res) => {
     verificationCodeExpiry.setHours(verificationCodeExpiry.getHours() + 1);
 
     const newUser = await pool.query(
-      "INSERT INTO usuarios (nombre, apellidos, email, password, rol, fecha_registro, verificado, codigo_verificacion, verification_code_expiry) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id, nombre, apellidos, email, rol, fecha_registro, codigo_verificacion, verification_code_expiry",
+      `INSERT INTO usuarios 
+        (nombre, apellidos, email, email_hash, password, rol, fecha_registro, verificado, codigo_verificacion, verification_code_expiry) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) 
+       RETURNING id, nombre, apellidos, email, rol, fecha_registro, codigo_verificacion, verification_code_expiry`,
       [
         nombre,
         apellidos,
-        email,
+        encryptedEmail,
+        emailHash,
         hashedPassword,
         rol || "autonomo",
         fecha_registro,
@@ -45,22 +53,18 @@ const register = async (req, res) => {
       ]
     );
 
-    try {
-      const emailSent = await sendVerificationEmail(email, verificationCode);
-      if (!emailSent || emailSent.error) {
-        return res.status(500).json({
-          message: "Error al enviar el correo de verificación.",
-        });
-      }
-
-      return res.status(201).json({
-        message:
-          "Usuario registrado correctamente. Revisa tu correo para verificar tu cuenta.",
-        user: newUser.rows[0],
+    const emailSent = await sendVerificationEmail(email, verificationCode);
+    if (!emailSent || emailSent.error) {
+      return res.status(500).json({
+        message: "Error al enviar el correo de verificación.",
       });
-    } catch (err) {
-      return res.status(500).json({ message: "Fallo al enviar el correo." });
     }
+
+    return res.status(201).json({
+      message:
+        "Usuario registrado correctamente. Revisa tu correo para verificar tu cuenta.",
+      user: newUser.rows[0],
+    });
   } catch (error) {
     res.status(500).json({ message: "Error en el servidor." });
   }
@@ -76,6 +80,7 @@ const login = async (req, res) => {
   }
 
   try {
+    // Verificación reCAPTCHA
     const recaptchaVerificationResponse = await axios.post(
       `https://www.google.com/recaptcha/api/siteverify`,
       null,
@@ -93,30 +98,36 @@ const login = async (req, res) => {
       });
     }
 
-    const user = await pool.query("SELECT * FROM usuarios WHERE email = $1", [
-      email,
-    ]);
+    const emailHash = hash(email);
+
+    const user = await pool.query(
+      "SELECT * FROM usuarios WHERE email_hash = $1",
+      [emailHash]
+    );
+
     if (user.rows.length === 0) {
       return res.status(400).json({ message: "Credenciales inválidas" });
     }
 
-    if (!user.rows[0].verificado) {
+    const userData = user.rows[0];
+
+    if (!userData.verificado) {
       return res.status(400).json({
         message: "Por favor verifica tu cuenta antes de iniciar sesión.",
       });
     }
 
-    const validPassword = await bcrypt.compare(password, user.rows[0].password);
+    const validPassword = await bcrypt.compare(password, userData.password);
     if (!validPassword) {
       return res.status(400).json({ message: "Credenciales inválidas" });
     }
 
     const token = jwt.sign(
       {
-        id: user.rows[0].id,
-        nombre: user.rows[0].nombre,
-        apellidos: user.rows[0].apellidos,
-        rol: user.rows[0].rol,
+        id: userData.id,
+        nombre: userData.nombre,
+        apellidos: userData.apellidos,
+        rol: userData.rol,
       },
       process.env.JWT_SECRET,
       { expiresIn: "12h" }
@@ -125,11 +136,10 @@ const login = async (req, res) => {
     res.json({
       message: "Inicio de sesión exitoso",
       token,
-      usuario_id: user.rows[0].id,
-      email: user.rows[0].email,
-      rol: user.rows[0].rol,
-      nombre: user.rows[0].nombre,
-      apellidos: user.rows[0].apellidos,
+      usuario_id: userData.id,
+      email: decrypt(userData.email),
+      nombre: userData.nombre,
+      apellidos: userData.apellidos,
     });
   } catch (error) {
     res.status(500).json({ message: "Error en el servidor" });
@@ -186,9 +196,12 @@ const updateUserInfo = async (req, res) => {
   }
 
   try {
+    const encryptedEmail = encrypt(email);
+    const hashedEmail = hash(email);
+
     const emailCheck = await pool.query(
-      "SELECT id FROM usuarios WHERE email = $1 AND id <> $2",
-      [email, usuario_id]
+      "SELECT id FROM usuarios WHERE email_hash = $1 AND id <> $2",
+      [hashedEmail, usuario_id]
     );
 
     if (emailCheck.rows.length > 0) {
@@ -199,15 +212,27 @@ const updateUserInfo = async (req, res) => {
 
     const updateQuery = await pool.query(
       `UPDATE usuarios 
-       SET nombre = $1, apellidos = $2, email = $3 
-       WHERE id = $4 
+       SET nombre = $1, apellidos = $2, email = $3, email_hash = $4
+       WHERE id = $5 
        RETURNING id, nombre, apellidos, email`,
-      [nombre, apellidos, email, usuario_id]
+      [nombre, apellidos, encryptedEmail, hashedEmail, usuario_id]
     );
+
+    if (!updateQuery.rows.length) {
+      return res.status(404).json({ message: "Usuario no encontrado." });
+    }
+
+    const updatedUser = updateQuery.rows[0];
+
+    if (updatedUser.email) {
+      updatedUser.email = decrypt(updatedUser.email);
+    } else {
+      updatedUser.email = null;
+    }
 
     res.status(200).json({
       message: "Información actualizada con éxito.",
-      user: updateQuery.rows[0],
+      user: updatedUser,
     });
   } catch (error) {
     res.status(500).json({ message: "Error en el servidor." });
@@ -217,24 +242,32 @@ const updateUserInfo = async (req, res) => {
 const verifyCode = async (req, res) => {
   const { email, codigo_verificacion } = req.body;
 
-  try {
-    const user = await pool.query("SELECT * FROM usuarios WHERE email = $1", [
-      email,
-    ]);
+  if (!email || !codigo_verificacion) {
+    return res.status(400).json({ message: "Faltan campos obligatorios." });
+  }
 
-    if (user.rows.length === 0) {
+  try {
+    const hashedEmail = hash(email);
+
+    const userQuery = await pool.query(
+      "SELECT * FROM usuarios WHERE email_hash = $1",
+      [hashedEmail]
+    );
+
+    if (userQuery.rows.length === 0) {
       return res.status(404).json({ message: "Usuario no encontrado" });
     }
 
-    const existingUser = user.rows[0];
+    const existingUser = userQuery.rows[0];
 
     if (existingUser.verificado) {
       return res.status(200).json({
         message: "La cuenta ya está verificada. Puedes iniciar sesión",
       });
     }
+    const cleanCode = codigo_verificacion.toString().trim();
 
-    if (existingUser.codigo_verificacion !== codigo_verificacion) {
+    if (existingUser.codigo_verificacion.toString() !== cleanCode) {
       return res
         .status(400)
         .json({ message: "Código de verificación incorrecto" });
@@ -247,10 +280,15 @@ const verifyCode = async (req, res) => {
         .json({ message: "El código de verificación ha expirado" });
     }
 
-    await pool.query("UPDATE usuarios SET verificado = true WHERE email = $1", [
-      email,
-    ]);
 
+    await pool.query(
+      `UPDATE usuarios 
+        SET verificado = true, 
+        codigo_verificacion = NULL, 
+        verification_code_expiry = NULL 
+        WHERE email_hash = $1`,
+      [hashedEmail]
+    );
     try {
       const welcomeSent = await sendWelcomeEmail(email);
 
@@ -274,28 +312,37 @@ const verifyCode = async (req, res) => {
 const resendVerificationCode = async (req, res) => {
   const { email } = req.body;
 
-  try {
-    const user = await pool.query("SELECT * FROM usuarios WHERE email = $1", [
-      email,
-    ]);
+  if (!email) {
+    return res.status(400).json({ message: "Falta el email." });
+  }
 
-    if (user.rows.length === 0) {
+  try {
+    const hashedEmail = hash(email);
+
+    const userQuery = await pool.query(
+      "SELECT * FROM usuarios WHERE email_hash = $1",
+      [hashedEmail]
+    );
+
+    if (userQuery.rows.length === 0) {
       return res.status(400).json({ message: "El usuario no existe" });
     }
 
-    if (user.rows[0].verificado) {
+    const user = userQuery.rows[0];
+
+    if (user.verificado) {
       return res.status(400).json({
         message: "Tu cuenta ya está verificada. Puedes iniciar sesión.",
       });
     }
 
     const currentTime = new Date();
-    const verificationCodeExpiry = user.rows[0].verification_code_expiry;
+    const verificationCodeExpiry = user.verification_code_expiry;
 
     if (currentTime < verificationCodeExpiry) {
       return res.status(400).json({
         message:
-          "Aún no ha expirado el código de verificación. Intentelo de nuevo más tarde.",
+          "Aún no ha expirado el código de verificación. Inténtalo de nuevo más tarde.",
       });
     }
 
@@ -306,8 +353,8 @@ const resendVerificationCode = async (req, res) => {
     );
 
     await pool.query(
-      "UPDATE usuarios SET codigo_verificacion = $1, verification_code_expiry = $2 WHERE email = $3",
-      [newVerificationCode, newVerificationCodeExpiry, email]
+      "UPDATE usuarios SET codigo_verificacion = $1, verification_code_expiry = $2 WHERE email_hash = $3",
+      [newVerificationCode, newVerificationCodeExpiry, hashedEmail]
     );
 
     const emailSent = await sendVerificationEmail(email, newVerificationCode);

@@ -27,7 +27,9 @@ router.post(
       .notEmpty()
       .withMessage("El nombre del gasto es obligatorio")
       .isString()
-      .withMessage("El nombre del gasto debe ser una cadena de caracteres"),
+      .withMessage("El nombre del gasto debe ser una cadena de caracteres")
+      .isLength({ max: 30 })
+      .withMessage("El nombre del gasto no puede superar los 30 caracteres"),
     body("categoria")
       .notEmpty()
       .withMessage("La categoría del gasto es obligatoria")
@@ -72,12 +74,21 @@ router.put(
     body("nombre_gasto")
       .optional()
       .isString()
-      .withMessage("El nombre del gasto debe ser una cadena de caracteres"),
+      .withMessage("El nombre del gasto debe ser una cadena de caracteres")
+      .isLength({ max: 30 })
+      .withMessage("El nombre no puede superar los 30 caracteres"),
     body("categoria")
       .optional()
-      .isIn(["Mano de obra", "Transporte", "Cuota", "Otros"])
+      .isIn([
+        "Transporte",
+        "Suscripciones",
+        "Mano de obra",
+        "Dominio y Hosting",
+        "Cuota",
+        "Otros",
+      ])
       .withMessage(
-        "La categoría debe ser uno de los siguientes valores: 'Mano de obra', 'Transporte', 'Cuota', 'Otros'"
+        "La categoría debe ser uno de los siguientes valores: 'Transporte','Suscripciones','Mano de obra', 'Dominio y Hosting', 'Cuota', 'Otros'"
       ),
     body("importe_total")
       .optional()
