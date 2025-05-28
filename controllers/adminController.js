@@ -1,5 +1,5 @@
 const pool = require("../db");
-const { encrypt, decrypt } = require("../utils/encryption");
+const { decrypt } = require("../utils/encryption");
 
 const getAdminDashboardStats = async (req, res) => {
   try {
@@ -94,14 +94,76 @@ const getUsersWithStats = async (req, res) => {
 
 const getTotalUsuarios = async (req, res) => {
   try {
-    const result = await pool.query(
-      "SELECT COUNT(*) AS totalUsuarios FROM usuarios"
-    );
-    const totalUsuarios = result.rows[0].totalusuarios;
+    const [
+      usuariosResult,
+      facturasResult,
+      gastosResult,
+      ingresosResult,
+      clientesResult,
+    ] = await Promise.all([
+      pool.query("SELECT COUNT(*) AS total_usuarios FROM usuarios"),
+      pool.query("SELECT COUNT(*) AS total_facturas FROM facturas"),
+      pool.query("SELECT COUNT(*) AS total_gastos FROM gastos"),
+      pool.query("SELECT COUNT(*) AS total_ingresos FROM ingresos"),
+      pool.query("SELECT COUNT(*) AS total_clientes FROM clientes"),
+    ]);
 
-    res.status(200).json({ totalUsuarios });
+    res.status(200).json({
+      totalUsuarios: parseInt(usuariosResult.rows[0].total_usuarios, 10),
+      totalFacturas: parseInt(facturasResult.rows[0].total_facturas, 10),
+      totalGastos: parseInt(gastosResult.rows[0].total_gastos, 10),
+      totalIngresos: parseInt(ingresosResult.rows[0].total_ingresos, 10),
+      totalClientes: parseInt(clientesResult.rows[0].total_clientes, 10),
+    });
   } catch (error) {
-    res.status(500).json({ message: "Error en el servidor" });
+    res
+      .status(500)
+      .json({ message: "Error en el servidor", error: error.message });
+  }
+};
+
+const getStatsByUser = async (req, res) => {
+  try {
+    const query = `
+      SELECT 
+        u.id,
+        u.nombre,
+        u.apellidos,
+        COALESCE(f.total_facturas, 0) AS total_facturas,
+        COALESCE(g.total_gastos, 0) AS total_gastos,
+        COALESCE(i.total_ingresos, 0) AS total_ingresos,
+        COALESCE(c.total_clientes, 0) AS total_clientes
+      FROM usuarios u
+      LEFT JOIN (
+        SELECT usuario_id, COUNT(*) AS total_facturas
+        FROM facturas
+        GROUP BY usuario_id
+      ) f ON f.usuario_id = u.id
+      LEFT JOIN (
+        SELECT usuario_id, COUNT(*) AS total_gastos
+        FROM gastos
+        GROUP BY usuario_id
+      ) g ON g.usuario_id = u.id
+      LEFT JOIN (
+        SELECT usuario_id, COUNT(*) AS total_ingresos
+        FROM ingresos
+        GROUP BY usuario_id
+      ) i ON i.usuario_id = u.id
+      LEFT JOIN (
+        SELECT usuario_id, COUNT(*) AS total_clientes
+        FROM clientes
+        GROUP BY usuario_id
+      ) c ON c.usuario_id = u.id
+      ORDER BY u.nombre, u.apellidos;
+    `;
+
+    const result = await pool.query(query);
+
+    res.status(200).json({ usuarios: result.rows });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Error en el servidor", error: error.message });
   }
 };
 
@@ -109,4 +171,5 @@ module.exports = {
   getAdminDashboardStats,
   getUsersWithStats,
   getTotalUsuarios,
+  getStatsByUser,
 };
