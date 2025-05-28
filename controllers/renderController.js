@@ -1,3 +1,5 @@
+const pool = require("../db");
+
 const ping = (req, res) => {
   res.status(200).json({
     status: "ok",
@@ -7,6 +9,7 @@ const ping = (req, res) => {
 
 const keepAlive = async (req, res) => {
   const apiKey = req.query.key;
+
   if (apiKey !== process.env.KEEP_ALIVE_KEY) {
     return res.status(403).send("No autorizado");
   }

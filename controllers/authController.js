@@ -3,7 +3,11 @@ const { encrypt, decrypt, hash } = require("../utils/encryption");
 const jwt = require("jsonwebtoken");
 const pool = require("../db");
 const axios = require("axios");
-const { sendVerificationEmail } = require("../utils/sendEmail");
+const {
+  sendVerificationEmail,
+  sendWelcomeEmail,
+  sendGoodbyeEmail,
+} = require("../utils/sendEmail");
 require("dotenv").config();
 const recaptchaSecretKey = process.env.RECAPTCHA_SECRET_KEY;
 
@@ -276,6 +280,7 @@ const verifyCode = async (req, res) => {
         .json({ message: "El código de verificación ha expirado" });
     }
 
+
     await pool.query(
       `UPDATE usuarios 
         SET verificado = true, 
@@ -284,6 +289,17 @@ const verifyCode = async (req, res) => {
         WHERE email_hash = $1`,
       [hashedEmail]
     );
+    try {
+      const welcomeSent = await sendWelcomeEmail(email);
+
+      if (!welcomeSent) {
+        console.warn(`⚠️ Fallo al enviar correo de bienvenida a: ${email}`);
+        // Puedes loguearlo o simplemente continuar sin bloquear al usuario
+      }
+    } catch (err) {
+      console.error("❌ Error al enviar correo de bienvenida:", err);
+      // Continuamos sin detener el flujo del usuario
+    }
 
     res
       .status(200)
@@ -379,6 +395,18 @@ const deleteUser = async (req, res) => {
     ]);
 
     await pool.query("DELETE FROM usuarios WHERE id = $1", [usuario_id]);
+
+    // Enviar correo de despedida
+    try {
+      const emailSent = await sendGoodbyeEmail(userEmail);
+      if (!emailSent) {
+        console.warn(
+          `⚠️ No se pudo enviar el correo de despedida a ${userEmail}`
+        );
+      }
+    } catch (err) {
+      console.error("❌ Error enviando correo de despedida:", err);
+    }
 
     res
       .status(200)
